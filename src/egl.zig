@@ -12,11 +12,13 @@ pub const Version = enum {
 pub const EGLContext = struct {
     const Self = @This();
 
+    major_ver: c.EGLint,
+    minor_ver: c.EGLint,
     display: c.EGLDisplay,
-    surface: c.EGLSurface,
+    tiny_surface: c.EGLSurface,
     context: c.EGLContext,
 
-    pub fn init(window: *android.ANativeWindow, version: Version) !Self {
+    pub fn init(version: Version) !Self {
         const EGLint = c.EGLint;
 
         var egl_display = c.eglGetDisplay(null);
@@ -87,54 +89,47 @@ pub const EGLContext = struct {
 
         std.log.info("Context created: {}\n", .{context});
 
-        var native_window: c.EGLNativeWindowType = @ptrCast(c.EGLNativeWindowType, window); // this is safe, just a C import problem
-
-        const android_width = android.ANativeWindow_getWidth(window);
-        const android_height = android.ANativeWindow_getHeight(window);
-
-        std.log.info("Screen Resolution: {}x{}\n", .{ android_width, android_height });
-
-        const window_attribute_list = [_]EGLint{c.EGL_NONE};
-        const egl_surface = c.eglCreateWindowSurface(egl_display, config, native_window, &window_attribute_list);
-
-        std.log.info("Got Surface: {}\n", .{egl_surface});
-
-        if (egl_surface == null) {
-            std.log.err("Error: eglCreateWindowSurface failed: 0x{X:0>4}\n", .{c.eglGetError()});
+        // Oculus doesn't need an EGL surface for most things, but we need a surface
+        // so that we can use eglMakeCurrent for the context.  Use a little tiny surface.
+        const tiny_surface_attribs = [_]EGLint{ c.EGL_WIDTH, 16, c.EGL_HEIGHT, 16, c.EGL_NONE };
+        const tiny_surface = c.eglCreatePbufferSurface(egl_display, config, &tiny_surface_attribs);
+        if (tiny_surface == null) {
+            log.err("Error: eglCreatePbufferSurface for tiny surface failed: 0x{X:0>4}\n", .{ c.eglGetError() });
             return error.FailedToInitializeEGL;
         }
-        errdefer _ = c.eglDestroySurface(egl_display, context);
+        errdefer _ = c.eglDestroySurface(egl_display, tiny_surface);
+
+        if (c.eglMakeCurrent(egl_display, tiny_surface, tiny_surface, context) == c.EGL_FALSE) {
+            log.err("Error: eglMakeCurrent() failed: 0x{X:0>4}\n", .{ c.eglGetError() });
+            return error.FailedToInitializeEGL;
+        }
 
         return Self{
+            .major_ver = egl_major,
+            .minor_ver = egl_minor,
             .display = egl_display,
-            .surface = egl_surface,
+            .tiny_surface = tiny_surface,
             .context = context,
         };
     }
 
     pub fn deinit(self: *Self) void {
-        _ = c.eglDestroySurface(self.display, self.surface);
+        self.release();
+        _ = c.eglDestroySurface(self.display, self.tiny_surface);
         _ = c.eglDestroyContext(self.display, self.context);
         self.* = undefined;
     }
 
-    pub fn swapBuffers(self: Self) !void {
-        if (c.eglSwapBuffers(self.display, self.surface) == c.EGL_FALSE) {
-            std.log.err("Error: eglMakeCurrent failed: 0x{X:0>4}\n", .{c.eglGetError()});
-            return error.EglFailure;
-        }
-    }
-
     pub fn makeCurrent(self: Self) !void {
-        if (c.eglMakeCurrent(self.display, self.surface, self.surface, self.context) == c.EGL_FALSE) {
+        if (c.eglMakeCurrent(self.display, self.tiny_surface, self.tiny_surface, self.context) == c.EGL_FALSE) {
             std.log.err("Error: eglMakeCurrent failed: 0x{X:0>4}\n", .{c.eglGetError()});
             return error.EglFailure;
         }
     }
 
     pub fn release(self: Self) void {
-        if (c.eglMakeCurrent(self.display, self.surface, self.surface, null) == c.EGL_FALSE) {
-            std.log.err("Error: eglMakeCurrent failed: 0x{X:0>4}\n", .{c.eglGetError()});
+        if (c.eglMakeCurrent(self.display, self.tiny_surface, self.tiny_surface, null) == c.EGL_FALSE) {
+            std.log.err("Error: eglMakeCurrent for release failed: 0x{X:0>4}\n", .{c.eglGetError()});
         }
     }
 };

@@ -7,6 +7,7 @@ const build_options = @import("build_options");
 
 pub const egl = @import("egl.zig");
 pub const JNI = @import("jni.zig").JNI;
+pub const ovr = @import("ovr.zig");
 
 const app_log = std.log.scoped(.app_glue);
 
@@ -152,10 +153,10 @@ pub fn log(
         switch (message_level) {
             //  => .ANDROID_LOG_VERBOSE,
             .debug => android.ANDROID_LOG_DEBUG,
-            .info, .notice => android.ANDROID_LOG_INFO,
+            .info => android.ANDROID_LOG_INFO,
             .warn => android.ANDROID_LOG_WARN,
             .err => android.ANDROID_LOG_ERROR,
-            .crit, .alert, .emerg => android.ANDROID_LOG_FATAL,
+            //  => android.ANDROID_LOG_FATAL,
         },
         build_options.app_name.ptr,
         msg0.ptr,

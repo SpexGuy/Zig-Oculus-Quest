@@ -34,6 +34,34 @@ versions: ToolchainVersions,
 /// Initializes the android SDK.
 /// It requires some input on which versions of the tool chains should be used
 pub fn init(b: *Builder, user_config: ?UserConfig, versions: ToolchainVersions) *Sdk {
+    // Make sure the oculus SDK is here
+    {
+        var quest_sdk = std.fs.cwd().openDir("quest_sdk", .{}) catch |err| {
+            std.debug.print(
+                \\Couldn't find the Oculus Mobile SDK.
+                \\Please unzip it into ./quest_sdk
+                \\Refer to README.md for more information.
+                \\Error: {}
+                \\
+            , .{err});
+            std.os.exit(1);
+        };
+        defer quest_sdk.close();
+
+        var vrapi = quest_sdk.openDir("VrApi", .{}) catch |err| {
+            std.debug.print(
+                \\Found the Quest SDK at ./quest_sdk, but it is configured incorrectly.
+                \\Please rearrange the files so that the "VrApi" folder in the SDK
+                \\is at ./quest_sdk/VrApi .
+                \\Refer to README.md for more information.
+                \\Error: {}
+                \\
+            , .{err});
+            std.os.exit(1);
+        };
+        defer vrapi.close();
+    }
+
     const actual_user_config = user_config orelse auto_detect.findUserConfig(b, versions) catch |err| @panic(@errorName(err));
 
     const system_tools = blk: {
@@ -201,7 +229,7 @@ pub const SystemTools = struct {
 pub const AppTargetConfig = struct {
     aarch64: bool = true,
     arm: bool = false, // re-enable when https://github.com/ziglang/zig/issues/8885 is resolved
-    x86_64: bool = true,
+    x86_64: bool = false,
     x86: bool = false,
 };
 
@@ -387,14 +415,14 @@ pub fn createApp(
     inline for (std.meta.fields(AppTargetConfig)) |fld| {
         const target_name = @field(Target, fld.name);
         if (@field(targets, fld.name)) {
-            const step = sdk.compileAppLibrary(
+            const library = sdk.compileAppLibrary(
                 src_file,
                 app_config,
                 mode,
                 target_name,
                 //   build_options.getPackage("build_options"),
             );
-            libs.append(step) catch unreachable;
+            libs.append(library.app_step) catch unreachable;
 
             const so_dir = switch (target_name) {
                 .aarch64 => "lib/arm64-v8a/",
@@ -403,9 +431,17 @@ pub fn createApp(
                 .x86 => "lib/x86/",
             };
 
-            const copy_to_zip = CopyToZipStep.create(sdk, apk_file, so_dir, step.getOutputSource());
-            copy_to_zip.step.dependOn(&make_unsigned_apk.step); // enforces creation of APK before the execution
-            sign_step.dependOn(&copy_to_zip.step);
+            {
+                const copy_to_zip = CopyToZipStep.create(sdk, apk_file, so_dir, library.app_step.getOutputSource());
+                copy_to_zip.step.dependOn(&make_unsigned_apk.step); // enforces creation of APK before the execution
+                sign_step.dependOn(&copy_to_zip.step);
+            }
+
+            for (library.libraries) |lib| {
+                const copy_to_zip = CopyToZipStep.create(sdk, apk_file, so_dir, .{ .path = lib });
+                copy_to_zip.step.dependOn(&make_unsigned_apk.step); // enforces creation of APK before the execution
+                sign_step.dependOn(&copy_to_zip.step);
+            }
         }
     }
 
@@ -534,6 +570,10 @@ const CopyToZipStep = struct {
 
 /// Compiles a single .so file for the given platform.
 /// Note that this function assumes your build script only uses a single `android_config`!
+const AppLibrary = struct {
+    app_step: *std.build.LibExeObjStep,
+    libraries: []const []const u8,
+};
 pub fn compileAppLibrary(
     sdk: Sdk,
     src_file: []const u8,
@@ -541,7 +581,7 @@ pub fn compileAppLibrary(
     mode: std.builtin.Mode,
     target: Target,
     // build_options: std.build.Pkg,
-) *std.build.LibExeObjStep {
+) AppLibrary {
     switch (target) {
         .arm => @panic("compiling android apps to arm not supported right now. see: https://github.com/ziglang/zig/issues/8885"),
         .x86 => @panic("compiling android apps to x86 not supported right now. see https://github.com/ziglang/zig/issues/7935"),
@@ -551,7 +591,6 @@ pub fn compileAppLibrary(
     const ndk_root = sdk.b.pathFromRoot(sdk.folders.android_ndk_root);
 
     const exe = sdk.b.addSharedLibrary(app_config.app_name, src_file, .unversioned);
-
     exe.force_pic = true;
     exe.link_function_sections = true;
     exe.bundle_compiler_rt = true;
@@ -573,6 +612,7 @@ pub fn compileAppLibrary(
         lib_dir: []const u8,
         include_dir: []const u8,
         out_dir: []const u8,
+        vrapi_dir: []const u8,
         target: std.zig.CrossTarget,
     };
 
@@ -581,24 +621,28 @@ pub fn compileAppLibrary(
             .lib_dir = "arch-arm64/usr/lib",
             .include_dir = "aarch64-linux-android",
             .out_dir = "arm64-v8a",
+            .vrapi_dir = "quest_sdk/VrApi/Libs/Android/arm64-v8a",
             .target = zig_targets.aarch64,
         },
         .arm => TargetConfig{
             .lib_dir = "arch-arm/usr/lib",
             .include_dir = "arm-linux-androideabi",
             .out_dir = "armeabi",
+            .vrapi_dir = "quest_sdk/VrApi/Libs/Android/armeabi-v7a",
             .target = zig_targets.arm,
         },
         .x86 => TargetConfig{
             .lib_dir = "arch-x86/usr/lib",
             .include_dir = "i686-linux-android",
             .out_dir = "x86",
+            .vrapi_dir = @panic("VrApi not built for x86, cannot link this platform"),
             .target = zig_targets.x86,
         },
         .x86_64 => TargetConfig{
             .lib_dir = "arch-x86_64/usr/lib64",
             .include_dir = "x86_64-linux-android",
             .out_dir = "x86_64",
+            .vrapi_dir = @panic("VrApi not built for x86_64, cannot link this platform"),
             .target = zig_targets.x86_64,
         },
     };
@@ -620,30 +664,24 @@ pub fn compileAppLibrary(
     exe.addLibPath(lib_dir);
     exe.addIncludeDir(std.fs.path.resolve(sdk.b.allocator, &[_][]const u8{ include_dir, config.include_dir }) catch unreachable);
 
-    exe.libc_file = std.build.FileSource{ .path = libc_path };
-
     // write libc file:
-    createLibCFile(exe.libc_file.?.path, include_dir, include_dir, lib_dir) catch unreachable;
+    const libc_file_step = CreateLibCFileStep.create(sdk.b, libc_path, include_dir, include_dir, lib_dir);
+    exe.libc_file = std.build.FileSource{ .generated = &libc_file_step.path };
+    exe.step.dependOn(&libc_file_step.step);
 
-    return exe;
-}
+    const vrapi_version = if (mode == .Debug) "Debug" else "Release";
+    const vrapi_lib_path = std.fs.path.join(sdk.b.allocator, &[_][]const u8{ config.vrapi_dir, vrapi_version }) catch unreachable;
+    exe.addLibPath(vrapi_lib_path);
+    exe.linkSystemLibraryName("vrapi");
 
-fn createLibCFile(path: []const u8, include_dir: []const u8, sys_include_dir: []const u8, crt_dir: []const u8) !void {
-    if (std.fs.path.dirname(path)) |dir| {
-        try std.fs.cwd().makePath(dir);
-    }
+    const libraries = sdk.b.allocator.alloc([]const u8, 1) catch unreachable;
+    const vrapi_lib = std.fs.path.join(sdk.b.allocator, &[_][]const u8{ vrapi_lib_path, "libvrapi.so" }) catch unreachable;
+    libraries[0] = vrapi_lib;
 
-    var f = try std.fs.cwd().createFile(path, .{});
-    defer f.close();
-
-    var writer = f.writer();
-
-    try writer.print("include_dir={s}\n", .{include_dir});
-    try writer.print("sys_include_dir={s}\n", .{sys_include_dir});
-    try writer.print("crt_dir={s}\n", .{crt_dir});
-    try writer.writeAll("msvc_lib_dir=\n");
-    try writer.writeAll("kernel32_lib_dir=\n");
-    try writer.writeAll("gcc_dir=\n");
+    return .{
+        .app_step = exe,
+        .libraries = libraries,
+    };
 }
 
 pub fn compressApk(sdk: Sdk, input_apk_file: []const u8, output_apk_file: []const u8) *Step {
@@ -1019,5 +1057,53 @@ const CacheBuilder = struct {
         const path = try self.createPath();
         try std.fs.cwd().makePath(path);
         return path;
+    }
+};
+
+// Can't use a WriteFileStep for this because we need to generate directories.
+const CreateLibCFileStep = struct {
+    step: std.build.Step,
+    path: std.build.GeneratedFile,
+    include_dir: []const u8,
+    sys_include_dir: []const u8,
+    crt_dir: []const u8,
+
+    pub fn create(
+        b: *std.build.Builder,
+        path: []const u8,
+        include_dir: []const u8,
+        sys_include_dir: []const u8,
+        crt_dir: []const u8,
+    ) *CreateLibCFileStep {
+        const self = b.allocator.create(CreateLibCFileStep) catch unreachable;
+        self.* = .{
+            .step = std.build.Step.init(.custom, b.fmt("Create libc file {s}", .{path}), b.allocator, make),
+            .path = .{ .path = path, .step = &self.step },
+            .include_dir = include_dir,
+            .sys_include_dir = sys_include_dir,
+            .crt_dir = crt_dir,
+        };
+        return self;
+    }
+
+    fn make(step: *Step) anyerror!void {
+        const self = @fieldParentPtr(@This(), "step", step);
+        const path = self.path.path.?;
+
+        if (std.fs.path.dirname(path)) |dir| {
+            try std.fs.cwd().makePath(dir);
+        }
+
+        var f = try std.fs.cwd().createFile(path, .{});
+        defer f.close();
+
+        var writer = f.writer();
+
+        try writer.print("include_dir={s}\n", .{self.include_dir});
+        try writer.print("sys_include_dir={s}\n", .{self.sys_include_dir});
+        try writer.print("crt_dir={s}\n", .{self.crt_dir});
+        try writer.writeAll("msvc_lib_dir=\n");
+        try writer.writeAll("kernel32_lib_dir=\n");
+        try writer.writeAll("gcc_dir=\n");
     }
 };

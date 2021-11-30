@@ -14,7 +14,7 @@ pub fn build(b: *std.build.Builder) !void {
     // Recommendation: Don't hardcore your password here, everyone can read it.
     // At least not for your production keystore ;)
     const key_store = Sdk.KeyStore{
-        .file = "zig-cache/debug.keystore",
+        .file = ".build_config/debug.keystore",
         .alias = "default",
         .password = "ziguana",
     };
@@ -23,14 +23,14 @@ pub fn build(b: *std.build.Builder) !void {
     // Android requires several configurations to be done, this is a typical config
     const config = Sdk.AppConfig{
         // This is displayed to the user
-        .display_name = "Zig Android App Template",
+        .display_name = "Zig Cube World Demo",
 
         // This is used internally for ... things?
-        .app_name = "zig-app-template",
+        .app_name = "zig-cubeworld",
 
         // This is required for the APK name. This identifies your app, android will associate
         // your signing key with this identifier and will prevent updates if the key changes.
-        .package_name = "net.random_projects.zig_android_template",
+        .package_name = "org.zigulus.cubeworld",
 
         // This is a set of resources. It should at least contain a "mipmap/icon.png" resource that
         // will provide the application icon.
@@ -46,15 +46,13 @@ pub fn build(b: *std.build.Builder) !void {
     };
 
     const app = sdk.createApp(
-        "app-template.apk",
+        "org.zigulus.cubeworld.apk",
         "example/main.zig",
         config,
         mode,
         .{
             .aarch64 = b.option(bool, "aarch64", "Enable the aarch64 build") orelse true,
             .arm = b.option(bool, "arm", "Enable the arm build") orelse false,
-            .x86_64 = b.option(bool, "x86_64", "Enable the x86_64 build") orelse true,
-            .x86 = b.option(bool, "x86", "Enable the x86 build") orelse false,
         }, // default targets
         key_store,
     );
@@ -70,8 +68,14 @@ pub fn build(b: *std.build.Builder) !void {
     const keystore_step = b.step("keystore", "Initialize a fresh debug keystore");
     const push_step = b.step("push", "Push the app to a connected android device");
     const run_step = b.step("run", "Run the app on a connected android device");
+    const libs_step = b.step("libs", "Install all libraries to the prefix path");
 
     keystore_step.dependOn(sdk.initKeystore(key_store, .{}));
     push_step.dependOn(app.install());
     run_step.dependOn(app.run());
+
+    for (app.libraries) |lib| {
+        const install = b.addInstallArtifact(lib);
+        libs_step.dependOn(&install.step);
+    }
 }
