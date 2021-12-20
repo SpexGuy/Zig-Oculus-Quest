@@ -210,7 +210,7 @@ pub const Vector3f = extern struct {
     }
 
     pub fn projected(self: @This()) Vector4f {
-        return self.extend(1);
+        return self.extended(1);
     }
 
     pub fn rotateAboutPivot(point: Vector3f, rotation: Quatf, pivot: Vector3f) Vector3f {
@@ -589,6 +589,14 @@ pub const Matrix4f = extern struct {
 pub const Posef = extern struct {
     Orientation: Quatf = Quatf.identity,
     Translation: Vector3f = Vector3f.zero,
+
+    pub fn toMatrix(self: Posef) Matrix4f {
+        var transform = Matrix4f.createFromQuaternion(self.Orientation);
+        transform.M[0][3] = self.Translation.x;
+        transform.M[1][3] = self.Translation.y;
+        transform.M[2][3] = self.Translation.z;
+        return transform;
+    }
 };
 pub const Rectf = extern struct {
     x: f32,
