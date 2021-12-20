@@ -181,7 +181,10 @@ pub const AppConfig = struct {
     /// If true, the app will be started in "fullscreen" mode, this means that
     /// navigation buttons as well as the top bar are not shown.
     /// This is usually relevant for games.
-    fullscreen: bool = false,
+    fullscreen: bool = true,
+
+    /// If true, the app will allow hand tracking instead of using remotes
+    enable_hand_tracking: bool = false,
 
     /// One or more asset directories. Each directory will be added into the app assets.
     asset_directories: []const []const u8 = &[_][]const u8{},
@@ -315,8 +318,19 @@ pub fn createApp(
         @setEvalBranchQuota(1_000_000);
         writer.print(
             \\<?xml version="1.0" encoding="utf-8" standalone="no"?><manifest xmlns:tools="http://schemas.android.com/tools" xmlns:android="http://schemas.android.com/apk/res/android" package="{s}">
+            \\    <uses-feature android:glEsVersion="0x00030001" android:required="true"/>
+            \\    <uses-feature android:name="android.hardware.vr.headtracking" android:required="true" />
             \\
         , .{app_config.package_name}) catch unreachable;
+        
+        if (app_config.enable_hand_tracking) {
+            writer.writeAll(
+                \\    <uses-feature android:name="oculus.software.handtracking" android:required="true" />
+                \\    <uses-permission android:name="com.oculus.permission.HAND_TRACKING" />
+                \\
+            ) catch unreachable;
+        }
+        
         for (app_config.permissions) |perm| {
             writer.print(
                 \\    <uses-permission android:name="{s}"/>
@@ -327,7 +341,15 @@ pub fn createApp(
         if (app_config.fullscreen) {
             writer.writeAll(
                 \\    <application android:debuggable="true" android:hasCode="false" android:label="@string/app_name" android:theme="@android:style/Theme.NoTitleBar.Fullscreen" tools:replace="android:icon,android:theme,android:allowBackup,label" android:icon="@mipmap/icon" >
-                \\        <activity android:configChanges="keyboardHidden|orientation" android:name="android.app.NativeActivity">
+                \\        <meta-data android:name="com.samsung.android.vr.application.mode" android:value="vr_only"/>
+                \\        <meta-data android:name="com.oculus.supportedDevices" android:value="all" />
+                \\        <activity
+                \\              android:name="android.app.NativeActivity"
+                \\              android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+                \\              android:launchMode="singleTask"
+                \\              android:screenOrientation="landscape"
+                \\              android:excludeFromRecents="false"
+                \\              android:configChanges="screenSize|screenLayout|orientation|keyboardHidden|keyboard|navigation|uiMode">
                 \\            <meta-data android:name="android.app.lib_name" android:value="@string/lib_name"/>
                 \\            <intent-filter>
                 \\                <action android:name="android.intent.action.MAIN"/>
