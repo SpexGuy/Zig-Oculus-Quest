@@ -22,6 +22,27 @@ const num_multisamples = 4;
 const initial_cpu_level = 2;
 const initial_gpu_level = 3;
 
+const colors = struct {
+    pub const black = [4]u8{ 0, 0, 0, 255 };
+    pub const red = [4]u8{ 255, 0, 0, 255 };
+    pub const green = [4]u8{ 0, 255, 0, 255 };
+    pub const blue = [4]u8{ 0, 0, 255, 255 };
+    pub const magenta = [4]u8{ 255, 0, 255, 255 };
+    pub const cyan = [4]u8{ 0, 255, 255, 255 };
+    pub const yellow = [4]u8{ 255, 255, 0, 255 };
+    pub const white = [4]u8{ 255, 255, 255, 255 };
+
+    pub const purple = [4]u8{ 128, 0, 255, 255 };
+    pub const seafoam = [4]u8{ 0, 255, 128, 255 };
+    pub const orange = [4]u8{ 255, 128, 0, 255 };
+
+    pub const chartreuse = [4]u8{ 128, 255, 0, 255 };
+    pub const pink = [4]u8{ 255, 0, 128, 255 };
+    pub const blue_cyan = [4]u8{ 0, 128, 255, 255 };
+
+    pub const dignified_gray = [4]u8{ 51, 51, 51, 255 };
+};
+
 pub const Program = struct {
     const max_uniforms = 8;
     const max_textures = 8;
@@ -42,6 +63,7 @@ pub const Program = struct {
         self: *Program,
         vertex_source: [:0]const u8,
         fragment_source: [:0]const u8,
+        vertex_attributes: []const VertexAttribute,
         use_multiview: bool,
     ) !void {
         var status: c.GLint = 0;
@@ -88,8 +110,8 @@ pub const Program = struct {
         GL(c.glAttachShader(program, vs), @src());
         GL(c.glAttachShader(program, fs), @src());
 
-        for (program_vertex_attributes) |attr| {
-            GL(c.glBindAttribLocation(program, @enumToInt(attr.location), attr.name.ptr), @src());
+        for (vertex_attributes) |attr| {
+            GL(c.glBindAttribLocation(program, attr.location, attr.name.ptr), @src());
         }
 
         GL(c.glLinkProgram(program), @src());
@@ -194,9 +216,8 @@ const fragment_shader_src =
 ;
 
 pub const Uniform = struct {
-    pub const model_matrix = 0;
-    pub const view_id = 1;
-    pub const scene_matrices = 2;
+    pub const view_id = 0;
+    pub const scene_matrices = 1;
 
     index: u8,
     kind: enum {
@@ -209,49 +230,47 @@ pub const Uniform = struct {
 };
 
 pub const program_uniforms = [_]Uniform{
-    .{ .index = Uniform.model_matrix, .kind = .matrix4x4, .name = "ModelMatrix" },
     .{ .index = Uniform.view_id, .kind = .int, .name = "ViewID" },
     .{ .index = Uniform.scene_matrices, .kind = .buffer, .name = "SceneMatrices" },
 };
 
-pub const VertexAttributeLocation = enum {
-    position,
-    color,
-    uv,
-    transform,
-};
 
 pub const VertexAttribute = struct {
-    location: VertexAttributeLocation,
+    location: u32,
     name: [:0]const u8,
 };
 
-pub const program_vertex_attributes = [_]VertexAttribute{
-    .{ .location = .position, .name = "vertexPosition" },
-    .{ .location = .color, .name = "vertexColor" },
-    .{ .location = .uv, .name = "vertexUv" },
-    .{ .location = .transform, .name = "vertexTransform" },
-};
-
 pub const VertexAttribPointer = struct {
-    index: c.GLint = -1,
-    size: c.GLint = 0,
-    kind: c.GLenum = 0,
-    normalized: c.GLboolean = 0,
-    stride: c.GLsizei = 0,
-    pointer: ?*const c_void = null,
+    index: c.GLuint,
+    size: c.GLint,
+    kind: c.GLenum,
+    normalized: c.GLboolean,
+    stride: c.GLsizei,
+    pointer: ?*const c_void,
 };
 
 pub const Geometry = struct {
     const max_vertex_attrib_pointers = 3;
+
+    // Vertex attribute bindings
+    pub const va_position = 0;
+    pub const va_color = 1;
+    pub const va_uv = 2;
+    pub const va_transform = 3;
+
+    pub const program_vertex_attributes = [_]VertexAttribute{
+        .{ .location = va_position, .name = "vertexPosition" },
+        .{ .location = va_color, .name = "vertexColor" },
+        .{ .location = va_uv, .name = "vertexUv" },
+        .{ .location = va_transform, .name = "vertexTransform" },
+    };
 
     vertex_buffer: c.GLuint = 0,
     index_buffer: c.GLuint = 0,
     vertex_array_object: c.GLuint = 0,
     vertex_count: u32 = 0,
     index_count: u32 = 0,
-    vertex_attribs: [max_vertex_attrib_pointers]VertexAttribPointer =
-        [_]VertexAttribPointer{ .{} } ** max_vertex_attrib_pointers,
+    vertex_attribs: []const VertexAttribPointer = &.{},
 
     pub fn createCube(self: *Geometry) void {
         const CubeVertices = extern struct {
@@ -294,22 +313,23 @@ pub const Geometry = struct {
 
         self.vertex_count = 8;
         self.index_count = 36;
-        self.vertex_attribs[0] = .{
-            .index = @enumToInt(VertexAttributeLocation.position),
+
+        const cube_vertex_attrs = comptime [_]VertexAttribPointer{ .{
+            .index = va_position,
             .size = 4,
             .kind = c.GL_BYTE,
             .normalized = 1,
             .stride = @sizeOf([4]i8),
             .pointer = @intToPtr(?*const c_void, @offsetOf(CubeVertices, "positions")),
-        };
-        self.vertex_attribs[1] = .{
-            .index = @enumToInt(VertexAttributeLocation.color),
+        }, .{
+            .index = va_color,
             .size = 4,
             .kind = c.GL_UNSIGNED_BYTE,
             .normalized = 1,
             .stride = @sizeOf([4]u8),
             .pointer = @intToPtr(?*const c_void, @offsetOf(CubeVertices, "colors")),
-        };
+        } };
+        self.vertex_attribs = &cube_vertex_attrs;
 
         var vb: c.GLuint = undefined;
         GL(c.glGenBuffers(1, &vb), @src());
@@ -340,24 +360,9 @@ pub const Geometry = struct {
         self.vertex_array_object = vao;
 
         GL(c.glBindVertexArray(vao), @src());
-        GL(c.glBindBuffer(c.GL_ARRAY_BUFFER, self.vertex_buffer), @src());
-        for (self.vertex_attribs) |*attr| {
-            if (attr.index != -1) {
-                GL(c.glEnableVertexAttribArray(@intCast(c_uint, attr.index)), @src());
-                GL(c.glVertexAttribPointer(
-                    @intCast(c_uint, attr.index),
-                    attr.size,
-                    attr.kind,
-                    attr.normalized,
-                    attr.stride,
-                    attr.pointer,
-                ), @src());
-            }
-        }
-
         GL(c.glBindBuffer(c.GL_ELEMENT_ARRAY_BUFFER, self.index_buffer), @src());
 
-        GL(c.glBindVertexArray(0), @src());
+        setUpBuffer(vao, self.vertex_buffer, self.vertex_attribs, false);
     }
 
     pub fn destroyVAO(self: *Geometry) void {
@@ -621,6 +626,26 @@ pub const Framebuffer = struct {
     }
 };
 
+fn setUpBuffer(vao: c.GLuint, buffer: c.GLuint, attributes: []const VertexAttribPointer, instanced: bool) void {
+    GL(c.glBindVertexArray(vao), @src());
+    GL(c.glBindBuffer(c.GL_ARRAY_BUFFER, buffer), @src());
+    for (attributes) |*attr| {
+        GL(c.glEnableVertexAttribArray(attr.index), @src());
+        GL(c.glVertexAttribPointer(
+            attr.index,
+            attr.size,
+            attr.kind,
+            attr.normalized,
+            attr.stride,
+            attr.pointer,
+        ), @src());
+        if (instanced) {
+            GL(c.glVertexAttribDivisor(attr.index, 1), @src());
+        }
+    }
+    GL(c.glBindVertexArray(0), @src());
+}
+
 const Scene = struct {
     const num_instances = 1500;
     const num_rotations = 16;
@@ -636,6 +661,11 @@ const Scene = struct {
     cube_positions: [num_instances]ovr.Vector3f = undefined,
     cube_rotations: [num_instances]u32 = undefined,
 
+    debug_line_program: Program = .{},
+    debug_line_instance_buffer: c.GLuint = 0,
+    debug_lines: std.ArrayListUnmanaged(DebugLine) = .{},
+    debug_line_vao: c.GLuint = 0,
+
     pub fn isCreated(self: *const Scene) bool {
         return self.created;
     }
@@ -643,7 +673,12 @@ const Scene = struct {
     pub fn create(self: *Scene, use_multiview: bool) !void {
         @setCold(true);
 
-        try self.program.create(vertex_shader_src, fragment_shader_src, use_multiview);
+        try self.program.create(
+            vertex_shader_src,
+            fragment_shader_src,
+            &Geometry.program_vertex_attributes,
+            use_multiview,
+        );
         errdefer self.program.destroy();
 
         self.cube.createCube();
@@ -708,6 +743,20 @@ const Scene = struct {
             self.cube_rotations[j] = @floatToInt(u32, self.randomFloat() * (num_rotations - 0.1));
         }
 
+        try self.debug_line_program.create(
+            DebugLine.vert_shader,
+            DebugLine.frag_shader,
+            &DebugLine.vertex_attrs,
+            use_multiview,
+        );
+        errdefer self.debug_line_program.destroy();
+
+        {
+            var line_instance_buf: c.GLuint = 0;
+            GL(c.glGenBuffers(1, &line_instance_buf), @src());
+            self.debug_line_instance_buffer = line_instance_buf;
+        }
+
         self.created = true;
 
         self.createVAOs();
@@ -721,31 +770,54 @@ const Scene = struct {
         GL(c.glDeleteBuffers(1, &self.instance_transform_buffer), @src());
         GL(c.glDeleteBuffers(1, &self.scene_matrices), @src());
 
+        self.debug_line_program.destroy();
+        GL(c.glDeleteBuffers(1, &self.debug_line_instance_buffer), @src());
+
+        self.debug_lines.deinit(c_allocator);
+
         self.created = false;
     }
 
     pub fn createVAOs(self: *Scene) void {
         if (self.created_vaos) return;
 
-        self.cube.createVAO();
+        // Init cube VAO
+        {
+            self.cube.createVAO();
 
-        GL(c.glBindVertexArray(self.cube.vertex_array_object), @src());
-        GL(c.glBindBuffer(c.GL_ARRAY_BUFFER, self.instance_transform_buffer), @src());
-        var i: u32 = 0;
-        while (i < 4) : (i += 1) {
-            const attrib = @enumToInt(VertexAttributeLocation.transform) + i;
-            GL(c.glEnableVertexAttribArray(attrib), @src());
-            GL(c.glVertexAttribPointer(
-                attrib,
-                4,
-                c.GL_FLOAT,
-                c.GL_FALSE,
-                4 * 4 * @sizeOf(f32),
-                @intToPtr(?*c_void, i * 4 * @sizeOf(f32)),
-            ), @src());
-            GL(c.glVertexAttribDivisor(attrib, 1), @src());
+            var geometry_instance_layout = [_]VertexAttribPointer{ .{
+                .index = undefined,
+                .size = 4,
+                .kind = c.GL_FLOAT,
+                .normalized = c.GL_FALSE,
+                .stride = @sizeOf(ovr.Matrix4f),
+                .pointer = undefined,
+            } } ** 4;
+            for (geometry_instance_layout) |*layout, i| {
+                layout.index = Geometry.va_transform + @intCast(c.GLuint, i);
+                layout.pointer = @intToPtr(?*c_void, i * @sizeOf(ovr.Vector4f));
+            }
+            setUpBuffer(
+                self.cube.vertex_array_object,
+                self.instance_transform_buffer,
+                &geometry_instance_layout,
+                true, // instanced
+            );
         }
-        GL(c.glBindVertexArray(0), @src());
+
+        // Init debug line VAO
+        {
+            var vao: c.GLuint = undefined;
+            GL(c.glGenVertexArrays(1, &vao), @src());
+            self.debug_line_vao = vao;
+
+            setUpBuffer(
+                vao,
+                self.debug_line_instance_buffer,
+                &DebugLine.va_ptrs,
+                true, // instanced
+            );
+        }
 
         self.created_vaos = true;
     }
@@ -754,6 +826,9 @@ const Scene = struct {
         if (!self.created_vaos) return;
 
         self.cube.destroyVAO();
+
+        GL(c.glDeleteVertexArrays(1, &self.debug_line_vao), @src());
+
         self.created_vaos = false;
     }
 
@@ -761,6 +836,17 @@ const Scene = struct {
         self.random = 1664525 *% self.random +% 1013904223;
         const bits = 0x3f800000 | (self.random & 0x007FFFFF);
         return @bitCast(f32, bits) - 1.0;
+    }
+
+    pub fn drawDebugLine(self: *Scene, start: ovr.Vector3f, end: ovr.Vector3f, color: [4]u8) void {
+        self.debug_lines.append(c_allocator, .{
+            .start = start,
+            .end = end,
+            .color = color,
+        }) catch |err| {
+            std.debug.assert(err == error.OutOfMemory);
+            app_log.warn("Failed to allocate memory for debug lines, size={}", .{self.debug_lines.capacity});
+        };
     }
 };
 
@@ -842,6 +928,80 @@ const events = struct {
     pub const resumed_bit = 1 << 0;
     pub const window_bit = 1 << 1;
     pub const configuration_bit = 1 << 2;
+};
+
+const DebugLine = extern struct {
+    start: ovr.Vector3f,
+    end: ovr.Vector3f,
+    color: [4]u8,
+
+    const va_start = 0;
+    const va_end = 1;
+    const va_color = 2;
+
+    const vertex_attrs = [_]VertexAttribute{
+        .{ .location = va_start, .name = "startPosition" },
+        .{ .location = va_end, .name = "endPosition" },
+        .{ .location = va_color, .name = "vertexColor" },
+    };
+
+    const va_ptrs = [_]VertexAttribPointer{
+        .{
+            .index = va_start,
+            .size = 3,
+            .kind = c.GL_FLOAT,
+            .normalized = c.GL_FALSE,
+            .stride = @sizeOf(DebugLine),
+            .pointer = @intToPtr(?*c_void, @offsetOf(DebugLine, "start")),
+        },
+        .{
+            .index = va_end,
+            .size = 3,
+            .kind = c.GL_FLOAT,
+            .normalized = c.GL_FALSE,
+            .stride = @sizeOf(DebugLine),
+            .pointer = @intToPtr(?*c_void, @offsetOf(DebugLine, "end")),
+        },
+        .{
+            .index = va_color,
+            .size = 4,
+            .kind = c.GL_UNSIGNED_BYTE,
+            .normalized = c.GL_TRUE,
+            .stride = @sizeOf(DebugLine),
+            .pointer = @intToPtr(?*c_void, @offsetOf(DebugLine, "color")),
+        },
+    };
+
+    const vert_shader =
+        \\ #ifndef DISABLE_MULTIVIEW
+        \\     #define DISABLE_MULTIVIEW 0
+        \\ #endif
+        \\ #define NUM_VIEWS 2
+        \\ #if defined( GL_OVR_multiview2 ) && ! DISABLE_MULTIVIEW
+        \\     #extension GL_OVR_multiview2 : enable
+        \\     layout(num_views=NUM_VIEWS) in;
+        \\     #define VIEW_ID gl_ViewID_OVR
+        \\ #else
+        \\     uniform lowp int ViewID;
+        \\     #define VIEW_ID ViewID
+        \\ #endif
+        \\ in vec3 startPosition;
+        \\ in vec3 endPosition;
+        \\ in vec4 vertexColor;
+        \\ uniform SceneMatrices
+        \\ {
+        \\     uniform mat4 ViewMatrix[NUM_VIEWS];
+        \\     uniform mat4 ProjectionMatrix[NUM_VIEWS];
+        \\ } sm;
+        \\ out vec4 fragmentColor;
+        \\ void main()
+        \\ {
+        \\     vec3 vertexPosition = (gl_VertexID == 0) ? startPosition : endPosition;
+        \\     gl_Position = sm.ProjectionMatrix[VIEW_ID] * ( sm.ViewMatrix[VIEW_ID] * vec4( vertexPosition, 1.0 ) );
+        \\     fragmentColor = vertexColor;
+        \\ }
+    ;
+    const frag_shader = fragment_shader_src;
 };
 
 /// Entry point for our application.
@@ -1096,7 +1256,78 @@ pub const AndroidApp = struct {
     }
 
     fn handleInput(self: *Self) void {
-        _ = self;
+        const vr = self.vr orelse return;
+
+        app_log.info("ZINPUT: Frame {}\n", .{self.frame_index});
+        var header: ovr.InputCapabilityHeader = undefined;
+        var index: u32 = 0;
+        while (true) : (index += 1) {
+            {
+                const rc = vr.enumerateInputDevices(index, &header);
+                if (rc < 0) break;
+            }
+
+            app_log.info("ZINPUT: [{}]: device {} is {}\n", .{index, header.DeviceID, header.Type});
+
+            inspect_item: {
+                switch (header.Type) {
+                    .tracked_remote => {
+                        var state: ovr.InputStateTrackedRemote = undefined;
+                        state.Header.ControllerType = .tracked_remote;
+                        state.Header.TimeInSeconds = self.display_time;
+                        const rc = vr.getCurrentInputState(header.DeviceID, &state.Header);
+                        if (rc < 0) {
+                            app_log.warn("ZINPUT:   Error {} from getCurrentInputState\n", .{rc});
+                            break :inspect_item;
+                        }
+
+                        app_log.info("ZINPUT:   = {}\n", .{state});
+                    },
+                    .standard_pointer => {
+                        var state: ovr.InputStateStandardPointer = undefined;
+                        state.Header.ControllerType = .standard_pointer;
+                        state.Header.TimeInSeconds = self.display_time;
+                        const rc = vr.getCurrentInputState(header.DeviceID, &state.Header);
+                        if (rc < 0) {
+                            app_log.warn("ZINPUT:   Error {} from getCurrentInputState\n", .{rc});
+                            break :inspect_item;
+                        }
+
+                        const pointer_base = ovr.Vector3f.init(0, 0, 0);
+                        const pointer_x = ovr.Vector3f.init(0.1, 0, 0);
+                        const pointer_y = ovr.Vector3f.init(0, 0.1, 0);
+                        const pointer_z = ovr.Vector3f.init(0, 0, 0.1);
+                        const pointer_point = ovr.Vector3f.init(0, 0, -0.3 - 0.3 * state.PointerStrength);
+
+                        const transform = state.PointerPose.toMatrix();
+
+                        const tf_base = transform.transform(pointer_base.projected()).position();
+                        const tf_point = transform.transform(pointer_point.projected()).position();
+                        const tf_x = transform.transform(pointer_x.projected()).position();
+                        const tf_y = transform.transform(pointer_y.projected()).position();
+                        const tf_z = transform.transform(pointer_z.projected()).position();
+
+                        self.scene.drawDebugLine(tf_base, tf_point, colors.purple);
+                        self.scene.drawDebugLine(tf_base, tf_x, colors.red);
+                        self.scene.drawDebugLine(tf_base, tf_y, colors.green);
+                        self.scene.drawDebugLine(tf_base, tf_z, colors.blue);
+
+                        app_log.info("ZINPUT:   = {}\n", .{state});
+                    },
+                    .hand => {
+                        // var state: ovr.InputStateHand = undefined;
+                        // state.Header.ControllerType = .hand;
+                        // const rc = vr.getCurrentInputState(header.DeviceID, &state.Header);
+
+                        // var pose = ovr.HandPose{};
+                        // vr.getHandPose(header.DeviceID, 
+                    },
+                    else => {},
+                }
+            }
+        }
+
+        app_log.info("ZINPUT: \n", .{});
     }
 
     fn updateSimulation(self: *Self, time_since_start: f64) void {
@@ -1162,6 +1393,18 @@ pub const AndroidApp = struct {
             GL(c.glBindBuffer(c.GL_UNIFORM_BUFFER, 0), @src());
         }
 
+        // update the debug line data
+        {
+            GL(c.glBindBuffer(c.GL_ARRAY_BUFFER, scene.debug_line_instance_buffer), @src());
+            GL(c.glBufferData(
+                c.GL_ARRAY_BUFFER,
+                @intCast(c.GLsizei, scene.debug_lines.items.len * @sizeOf(DebugLine)),
+                scene.debug_lines.items.ptr,
+                c.GL_STREAM_DRAW,
+            ), @src());
+            GL(c.glBindBuffer(c.GL_ARRAY_BUFFER, 0), @src());
+        }
+
         // set up a swapchain projection layer
         var layer: ovr.LayerProjection2 = .{
             .HeadPose = tracking.HeadPose,
@@ -1201,6 +1444,7 @@ pub const AndroidApp = struct {
             GL(c.glScissor(0, 0, fb.width, fb.height), @src());
             GL(c.glClearColor(0.2, 0.2, 0.2, 1.0), @src());
             GL(c.glClear(c.GL_COLOR_BUFFER_BIT | c.GL_DEPTH_BUFFER_BIT), @src());
+
             GL(c.glBindVertexArray(scene.cube.vertex_array_object), @src());
             GL(c.glDrawElementsInstanced(
                 c.GL_TRIANGLES,
@@ -1209,6 +1453,27 @@ pub const AndroidApp = struct {
                 null,
                 Scene.num_instances,
             ), @src());
+
+            GL(c.glDepthMask(c.GL_FALSE), @src());
+            GL(c.glDisable(c.GL_DEPTH_TEST), @src());
+
+            GL(c.glUseProgram(scene.debug_line_program.program), @src());
+            GL(c.glBindBufferBase(
+                c.GL_UNIFORM_BUFFER,
+                @intCast(c_uint, scene.debug_line_program.uniform_bindings[Uniform.scene_matrices]),
+                scene.scene_matrices,
+            ), @src());
+
+            GL(c.glBindVertexArray(scene.debug_line_vao), @src());
+            GL(c.glDrawArraysInstanced(
+                c.GL_LINES,
+                0, // starting index
+                2, // vertex count
+                @intCast(c.GLint, scene.debug_lines.items.len), // instance count
+            ), @src());
+
+            scene.debug_lines.clearRetainingCapacity();
+
             GL(c.glBindVertexArray(0), @src());
             GL(c.glUseProgram(0), @src());
 
