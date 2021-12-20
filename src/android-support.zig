@@ -37,7 +37,7 @@ export fn ANativeActivity_onCreate(activity: *android.ANativeActivity, savedStat
     });
 
     const app = std.heap.c_allocator.create(AndroidApp) catch {
-        app_log.emerg("Could not create new AndroidApp: OutOfMemory!\n", .{});
+        app_log.err("Could not create new AndroidApp: OutOfMemory!\n", .{});
         return;
     };
 
@@ -51,13 +51,13 @@ export fn ANativeActivity_onCreate(activity: *android.ANativeActivity, savedStat
         else
             null,
     ) catch |err| {
-        std.emerg("Failed to restore app state: {}\n", .{err});
+        std.err("Failed to restore app state: {}\n", .{err});
         std.heap.c_allocator.destroy(app);
         return;
     };
 
     app.start() catch |err| {
-        std.log.emerg("Failed to start app state: {}\n", .{err});
+        std.log.err("Failed to start app state: {}\n", .{err});
         app.deinit();
         std.heap.c_allocator.destroy(app);
         return;
@@ -86,7 +86,7 @@ const LogWriter = struct {
         for (buffer) |char| {
             switch (char) {
                 '\n' => {
-                    std.log.emerg("{s}", .{self.line_buffer[0..self.line_len]});
+                    std.log.err("{s}", .{self.line_buffer[0..self.line_len]});
                     self.line_len = 0;
                 },
                 else => {
@@ -113,20 +113,20 @@ const LogWriter = struct {
 
 // Android Panic implementation
 pub fn panic(message: []const u8, stack_trace: ?*std.builtin.StackTrace) noreturn {
-    std.log.emerg("PANIC: {s}\n", .{message});
+    std.log.err("PANIC: {s}\n", .{message});
 
     if (stack_trace) |st| {
-        std.log.emerg("{}\n", .{st});
+        std.log.err("{}\n", .{st});
     }
 
     if (std.debug.getSelfDebugInfo()) |debug_info| {
         var logger = LogWriter{};
 
         std.debug.writeCurrentStackTrace(logger.writer(), debug_info, .no_color, null) catch |err| {
-            std.log.emerg("failed to write stack trace: {s}", .{err});
+            std.log.err("failed to write stack trace: {s}", .{err});
         };
     } else |err| {
-        std.log.emerg("failed to get debug info: {s}", .{err});
+        std.log.err("failed to get debug info: {s}", .{err});
     }
 
     std.os.exit(1);
@@ -172,9 +172,9 @@ fn makeNativeActivityGlue(comptime App: type) android.ANativeActivityCallbacks {
                 if (activity.instance) |instance| {
                     const result = @call(.{}, @field(App, func), .{@ptrCast(*App, @alignCast(@alignOf(App), instance))} ++ args);
                     switch (@typeInfo(@TypeOf(result))) {
-                        .ErrorUnion => result catch |err| app_log.emerg("{s} returned error {s}", .{ func, @errorName(err) }),
+                        .ErrorUnion => result catch |err| app_log.err("{s} returned error {s}", .{ func, @errorName(err) }),
                         .Void => {},
-                        .ErrorSet => app_log.emerg("{s} returned error {s}", .{ func, @errorName(result) }),
+                        .ErrorSet => app_log.err("{s} returned error {s}", .{ func, @errorName(result) }),
                         else => @compileError("callback must return void!"),
                     }
                 }

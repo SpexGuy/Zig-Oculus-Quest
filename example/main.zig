@@ -12,8 +12,7 @@ const JNI = android.JNI;
 const c = android.egl.c;
 const ovr = android.ovr;
 
-// TODO: after 0.9.0, remove the * on this line
-const Allocator = *std.mem.Allocator;
+const Allocator = std.mem.Allocator;
 const c_allocator = std.heap.c_allocator;
 
 const app_log = std.log.scoped(.app);
@@ -883,7 +882,6 @@ pub const AndroidApp = struct {
     framebuffers: [ovr.Eye.count]Framebuffer = undefined,
     num_buffers: u32 = 0,
 
-
     /// This is the entry point which initializes a application
     /// that has stored its previous state.
     /// `stored_state` is that state, the memory is only valid for this function.
@@ -1224,7 +1222,7 @@ pub const AndroidApp = struct {
     }
 
     fn mainLoop(self: *Self) !void {
-        app_log.notice("mainLoop() started\n", .{});
+        app_log.info("mainLoop() started\n", .{});
 
         // load app configuration
         self.config = android.AConfiguration_new() orelse return error.OutOfMemory;
@@ -1251,7 +1249,7 @@ pub const AndroidApp = struct {
 
         {
             ovr.initialize(.{ .Java = self.java }) catch |err| {
-                app_log.emerg("ERROR: vrapi_Initialize() returned {}\n", .{err});
+                app_log.err("ERROR: vrapi_Initialize() returned {}\n", .{err});
                 return err;
             };
         }
@@ -1277,7 +1275,7 @@ pub const AndroidApp = struct {
                     std.mem.indexOf(u8, allExtensions, "GL_EXT_texture_border_clamp") != null or
                     std.mem.indexOf(u8, allExtensions, "GL_OES_texture_border_clamp") != null;
             }
-            app_log.notice("multiview: {}, texture border clamp: {}\n", .{has_multiview, has_texture_border_clamp});
+            app_log.info("multiview: {}, texture border clamp: {}\n", .{has_multiview, has_texture_border_clamp});
 
             self.use_multiview = has_multiview;
         }
@@ -1376,7 +1374,7 @@ pub const AndroidApp = struct {
             });
         }
 
-        app_log.notice("mainLoop() finished\n", .{});
+        app_log.info("mainLoop() finished\n", .{});
     }
 };
 
