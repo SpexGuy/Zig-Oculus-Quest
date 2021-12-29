@@ -717,16 +717,14 @@ const Scene = struct {
                 const ry = (self.randomFloat() - 0.5) * spawn_size;
                 const rz = (self.randomFloat() - 0.5) * spawn_size;
                 const abs = std.math.absFloat;
-                if (abs(rx) < close and abs(ry) < close and abs(rz) < close) {
-                    continue;
+                if (abs(rx) >= close and abs(ry) >= close and abs(rz) >= close) {
+                    // check for overlaps with other cubes
+                    for (self.cube_positions[0..i]) |other| {
+                        if (abs(rx - other.x) < close and abs(ry - other.y) < close and abs(rz - other.z) < close) {
+                            break;
+                        }
+                    } else break ovr.Vector3f.init(rx, ry, rz);
                 }
-
-                // check for overlaps with other cubes
-                for (self.cube_positions[0..i]) |other| {
-                    if (abs(rx - other.x) < close and abs(ry - other.y) < close and abs(rz - other.z) < close) {
-                        break;
-                    }
-                } else break ovr.Vector3f.init(rx, ry, rz);
             } else unreachable;
 
             // keep the list of cubes sorted by distance from the origin
@@ -849,6 +847,10 @@ const Scene = struct {
             app_log.warn("Failed to allocate memory for debug lines, size={}", .{self.debug_lines.capacity});
         };
     }
+};
+
+const Sound = struct {
+
 };
 
 const glext = struct {
@@ -1582,7 +1584,7 @@ pub const AndroidApp = struct {
             const vr = self.vr orelse {
                 // give event threads time to run before taking the event mutex again
                 std.time.sleep(std.time.ns_per_ms * 8);
-                continue;
+                _ = if (true) continue else {}; // workaround for ZLS bug
             };
 
             if (!self.scene.isCreated()) {
