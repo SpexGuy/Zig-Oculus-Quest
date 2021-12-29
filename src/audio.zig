@@ -2,24 +2,24 @@ const std = @import("std");
 
 /// This is equivalent to the constants in std.os.linux.CLOCK, but only
 /// CLOCK_MONOTONIC and CLOCK_BOOTTIME are allowed.
-pub const Clock = enum (i32) {
+pub const Clock = enum(i32) {
     monotonic = 1,
     boottime = 7,
     _,
 };
-pub const Direction = enum (i32) {
+pub const Direction = enum(i32) {
     output = 0,
     input = 1,
     _,
 };
-pub const Format = enum (i32) {
+pub const Format = enum(i32) {
     invalid = -1,
     unspecified = 0,
     pcm_i16 = 1,
     pcm_float = 2,
     _,
 };
-pub const Result = enum (i32) {
+pub const Result = enum(i32) {
     ok = 0,
     error_disconnected = -899,
     error_illegal_argument = -898,
@@ -49,7 +49,7 @@ pub const Result = enum (i32) {
             .error_out_of_range,
             => {
                 if (std.debug.runtime_safety) {
-                    std.debug.panic("Programmer error: {s}", .{ @tagName(self) });
+                    std.debug.panic("Programmer error: {s}", .{@tagName(self)});
                 }
                 return Error.AAudio_Unknown;
             },
@@ -74,7 +74,7 @@ pub const Result = enum (i32) {
     }
 };
 
-pub const Error = error {
+pub const Error = error{
     /// An unexpected or undocumented error is returned.
     /// This error is also returned for errors which indicate
     /// a programming mistake, such as invalid parameters.
@@ -120,7 +120,7 @@ pub const Error = error {
     AAudio_InvalidRate,
 };
 
-pub const StreamState = enum (i32) {
+pub const StreamState = enum(i32) {
     uninitialized = 0,
     unknown = 1,
     open = 2,
@@ -139,18 +139,18 @@ pub const StreamState = enum (i32) {
 
     pub const convertToText = raw.AAudio_convertStreamStateToText;
 };
-pub const SharingMode = enum (i32) {
+pub const SharingMode = enum(i32) {
     exclusive = 0,
     shared = 1,
     _,
 };
-pub const PerformanceMode = enum (i32) {
+pub const PerformanceMode = enum(i32) {
     none = 10,
     power_saving = 11,
     low_latency = 12,
     _,
 };
-pub const Usage = enum (i32) {
+pub const Usage = enum(i32) {
     media = 1,
     voice_communication = 2,
     voice_communication_signalling = 3,
@@ -165,14 +165,14 @@ pub const Usage = enum (i32) {
     assistant = 16,
     _,
 };
-pub const ContentType = enum (i32) {
+pub const ContentType = enum(i32) {
     speech = 1,
     music = 2,
     movie = 3,
     sonification = 4,
     _,
 };
-pub const InputPreset = enum (i32) {
+pub const InputPreset = enum(i32) {
     generic = 1,
     camcorder = 5,
     voice_recognition = 6,
@@ -181,18 +181,12 @@ pub const InputPreset = enum (i32) {
     voice_performance = 10,
     _,
 };
-pub const CapturePolicy = enum (i32) {
-    allow_capture_by_all = 1,
-    allow_capture_by_system = 2,
-    allow_capture_by_none = 3,
-    _,
-};
-pub const SessionId = enum (i32) {
+pub const SessionId = enum(i32) {
     none = -1,
     allocate = 0,
     _,
 };
-pub const StreamBuilder = opaque{
+pub const StreamBuilder = opaque {
     pub fn create() !*StreamBuilder {
         var self: ?*StreamBuilder = null;
         const rc = raw.AAudio_createStreamBuilder(&self);
@@ -228,8 +222,8 @@ pub const StreamBuilder = opaque{
     pub const setErrorCallback = raw.AAudioStreamBuilder_setErrorCallback;
 };
 
-pub const Stream = opaque{
-    const DataCallbackResult = enum (i32) {
+pub const Stream = opaque {
+    const DataCallbackResult = enum(i32) {
         @"continue" = 0,
         stop = 1,
     };
@@ -332,7 +326,6 @@ pub const raw = struct {
     pub extern fn AAudioStreamBuilder_setUsage(builder: *StreamBuilder, usage: Usage) void;
     pub extern fn AAudioStreamBuilder_setContentType(builder: *StreamBuilder, contentType: ContentType) void;
     pub extern fn AAudioStreamBuilder_setInputPreset(builder: *StreamBuilder, inputPreset: InputPreset) void;
-    pub extern fn AAudioStreamBuilder_setAllowedCapturePolicy(builder: *StreamBuilder, capturePolicy: CapturePolicy) void;
     pub extern fn AAudioStreamBuilder_setSessionId(builder: *StreamBuilder, sessionId: SessionId) void;
     pub extern fn AAudioStreamBuilder_setDataCallback(builder: *StreamBuilder, callback: ?Stream.DataCallback, userData: ?*anyopaque) void;
     pub extern fn AAudioStreamBuilder_setFramesPerDataCallback(builder: *StreamBuilder, numFrames: i32) void;
@@ -369,5 +362,4 @@ pub const raw = struct {
     pub extern fn AAudioStream_getUsage(stream: *Stream) Usage;
     pub extern fn AAudioStream_getContentType(stream: *Stream) ContentType;
     pub extern fn AAudioStream_getInputPreset(stream: *Stream) InputPreset;
-    pub extern fn AAudioStream_getAllowedCapturePolicy(stream: *Stream) CapturePolicy;
 };
