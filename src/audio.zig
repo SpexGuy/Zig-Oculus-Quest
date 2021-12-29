@@ -307,7 +307,6 @@ pub const Stream = opaque {
     pub const getUsage = raw.AAudioStream_getUsage;
     pub const getContentType = raw.AAudioStream_getContentType;
     pub const getInputPreset = raw.AAudioStream_getInputPreset;
-    pub const getAllowedCapturePolicy = raw.AAudioStream_getAllowedCapturePolicy;
 };
 
 pub const raw = struct {
