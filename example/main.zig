@@ -71,7 +71,7 @@ pub const Program = struct {
         const vs = GL(c.glCreateShader(c.GL_VERTEX_SHADER), @src());
         errdefer GL(c.glDeleteShader(vs), @src());
 
-        const vertex_sources = [_][*c]const u8 {
+        const vertex_sources = [_][*c]const u8{
             version_header,
             if (use_multiview) enable_multiview else disable_multiview,
             vertex_source.ptr,
@@ -83,14 +83,14 @@ pub const Program = struct {
             var msg: [4096]c.GLchar = undefined;
             GL(c.glGetShaderInfoLog(vs, msg.len, 0, &msg), @src());
             const err_log = std.mem.sliceTo(&msg, 0);
-            app_log.err("Failed to compile vertex shader!\nSource:\n{s}\n{s}\n", .{vertex_source, err_log});
+            app_log.err("Failed to compile vertex shader!\nSource:\n{s}\n{s}\n", .{ vertex_source, err_log });
             return error.ShaderCreationFailed;
         }
 
         const fs = GL(c.glCreateShader(c.GL_FRAGMENT_SHADER), @src());
         errdefer GL(c.glDeleteShader(fs), @src());
 
-        const fragment_sources = [_][*c]const u8 {
+        const fragment_sources = [_][*c]const u8{
             version_header,
             fragment_source.ptr,
         };
@@ -101,7 +101,7 @@ pub const Program = struct {
             var msg: [4096]c.GLchar = undefined;
             GL(c.glGetShaderInfoLog(fs, msg.len, 0, &msg), @src());
             const err_log = std.mem.sliceTo(&msg, 0);
-            app_log.err("Failed to compile fragment shader!\nSource:\n{s}\n{s}\n", .{vertex_source, err_log});
+            app_log.err("Failed to compile fragment shader!\nSource:\n{s}\n{s}\n", .{ vertex_source, err_log });
             return error.ShaderCreationFailed;
         }
 
@@ -234,7 +234,6 @@ pub const program_uniforms = [_]Uniform{
     .{ .index = Uniform.scene_matrices, .kind = .buffer, .name = "SceneMatrices" },
 };
 
-
 pub const VertexAttribute = struct {
     location: u32,
     name: [:0]const u8,
@@ -246,7 +245,7 @@ pub const VertexAttribPointer = struct {
     kind: c.GLenum,
     normalized: c.GLboolean,
     stride: c.GLsizei,
-    pointer: ?*const c_void,
+    pointer: ?*const anyopaque,
 };
 
 pub const Geometry = struct {
@@ -320,14 +319,14 @@ pub const Geometry = struct {
             .kind = c.GL_BYTE,
             .normalized = 1,
             .stride = @sizeOf([4]i8),
-            .pointer = @intToPtr(?*const c_void, @offsetOf(CubeVertices, "positions")),
+            .pointer = @intToPtr(?*const anyopaque, @offsetOf(CubeVertices, "positions")),
         }, .{
             .index = va_color,
             .size = 4,
             .kind = c.GL_UNSIGNED_BYTE,
             .normalized = 1,
             .stride = @sizeOf([4]u8),
-            .pointer = @intToPtr(?*const c_void, @offsetOf(CubeVertices, "colors")),
+            .pointer = @intToPtr(?*const anyopaque, @offsetOf(CubeVertices, "colors")),
         } };
         self.vertex_attribs = &cube_vertex_attrs;
 
@@ -431,7 +430,7 @@ pub const Framebuffer = struct {
         } else {
             GL(c.glDeleteRenderbuffers(length, depth_buffers.ptr), @src());
         };
-        
+
         GL(c.glGenFramebuffers(length, frame_buffers.ptr), @src());
         errdefer GL(c.glDeleteFramebuffers(length, frame_buffers.ptr), @src());
 
@@ -502,7 +501,7 @@ pub const Framebuffer = struct {
                 const render_framebuffer_status =
                     GL(c.glCheckFramebufferStatus(c.GL_DRAW_FRAMEBUFFER), @src());
                 GL(c.glBindFramebuffer(c.GL_DRAW_FRAMEBUFFER, 0), @src());
-                
+
                 if (render_framebuffer_status != c.GL_FRAMEBUFFER_COMPLETE) {
                     app_log.err(
                         "Incomplete frame buffer object: {s}\n",
@@ -514,9 +513,7 @@ pub const Framebuffer = struct {
                 if (multisamples > 1 and glRenderbufferStorageMultisampleEXT != null and glFramebufferTexture2DMultisampleEXT != null) {
                     // create multisampled depth buffer.
                     GL(c.glBindRenderbuffer(c.GL_RENDERBUFFER, depth_buffers[i]), @src());
-                    GL(glRenderbufferStorageMultisampleEXT.?(
-                        c.GL_RENDERBUFFER, multisamples, c.GL_DEPTH_COMPONENT24, width, height
-                    ), @src());
+                    GL(glRenderbufferStorageMultisampleEXT.?(c.GL_RENDERBUFFER, multisamples, c.GL_DEPTH_COMPONENT24, width, height), @src());
                     GL(c.glBindRenderbuffer(c.GL_RENDERBUFFER, 0), @src());
 
                     // create the frame buffer.
@@ -560,7 +557,11 @@ pub const Framebuffer = struct {
                         depth_buffers[i],
                     ), @src());
                     GL(c.glFramebufferTexture2D(
-                        c.GL_DRAW_FRAMEBUFFER, c.GL_COLOR_ATTACHMENT0, c.GL_TEXTURE_2D, color_tex, 0,
+                        c.GL_DRAW_FRAMEBUFFER,
+                        c.GL_COLOR_ATTACHMENT0,
+                        c.GL_TEXTURE_2D,
+                        color_tex,
+                        0,
                     ), @src());
                     const render_framebuffer_status = GL(c.glCheckFramebufferStatus(c.GL_DRAW_FRAMEBUFFER), @src());
                     GL(c.glBindFramebuffer(c.GL_DRAW_FRAMEBUFFER, 0), @src());
@@ -614,7 +615,7 @@ pub const Framebuffer = struct {
     pub fn resolve(self: *@This()) void {
         _ = self;
         // discard the depth buffer, so the tiler won't need to write it back out to memory.
-        const depth_attachment = [_]c.GLenum{ c.GL_DEPTH_ATTACHMENT };
+        const depth_attachment = [_]c.GLenum{c.GL_DEPTH_ATTACHMENT};
         GL(c.glInvalidateFramebuffer(c.GL_DRAW_FRAMEBUFFER, 1, &depth_attachment), @src());
 
         // we now let the resolve happen implicitly.
@@ -732,10 +733,10 @@ const Scene = struct {
             const dist_sqr = pos.x * pos.x + pos.y * pos.y + pos.z * pos.z;
             var j = i;
             while (j > 0) : (j -= 1) {
-                if (dist_sqr > distances_sqr[j-1]) break;
-                distances_sqr[j] = distances_sqr[j-1];
-                self.cube_positions[j] = self.cube_positions[j-1];
-                self.cube_rotations[j] = self.cube_rotations[j-1];
+                if (dist_sqr > distances_sqr[j - 1]) break;
+                distances_sqr[j] = distances_sqr[j - 1];
+                self.cube_positions[j] = self.cube_positions[j - 1];
+                self.cube_rotations[j] = self.cube_rotations[j - 1];
             }
 
             distances_sqr[j] = dist_sqr;
@@ -785,17 +786,17 @@ const Scene = struct {
         {
             self.cube.createVAO();
 
-            var geometry_instance_layout = [_]VertexAttribPointer{ .{
+            var geometry_instance_layout = [_]VertexAttribPointer{.{
                 .index = undefined,
                 .size = 4,
                 .kind = c.GL_FLOAT,
                 .normalized = c.GL_FALSE,
                 .stride = @sizeOf(ovr.Matrix4f),
                 .pointer = undefined,
-            } } ** 4;
+            }} ** 4;
             for (geometry_instance_layout) |*layout, i| {
                 layout.index = Geometry.va_transform + @intCast(c.GLuint, i);
-                layout.pointer = @intToPtr(?*c_void, i * @sizeOf(ovr.Vector4f));
+                layout.pointer = @intToPtr(?*anyopaque, i * @sizeOf(ovr.Vector4f));
             }
             setUpBuffer(
                 self.cube.vertex_array_object,
@@ -852,8 +853,7 @@ const Scene = struct {
 
 const glext = struct {
     const GLCC: std.builtin.CallingConvention =
-        if (builtin.os.tag == .windows) std.os.windows.WINAPI
-        else .C;
+        if (builtin.os.tag == .windows) std.os.windows.WINAPI else .C;
 
     const ExtFunc = struct {
         name: [:0]const u8,
@@ -952,7 +952,7 @@ const DebugLine = extern struct {
             .kind = c.GL_FLOAT,
             .normalized = c.GL_FALSE,
             .stride = @sizeOf(DebugLine),
-            .pointer = @intToPtr(?*c_void, @offsetOf(DebugLine, "start")),
+            .pointer = @intToPtr(?*anyopaque, @offsetOf(DebugLine, "start")),
         },
         .{
             .index = va_end,
@@ -960,7 +960,7 @@ const DebugLine = extern struct {
             .kind = c.GL_FLOAT,
             .normalized = c.GL_FALSE,
             .stride = @sizeOf(DebugLine),
-            .pointer = @intToPtr(?*c_void, @offsetOf(DebugLine, "end")),
+            .pointer = @intToPtr(?*anyopaque, @offsetOf(DebugLine, "end")),
         },
         .{
             .index = va_color,
@@ -968,7 +968,7 @@ const DebugLine = extern struct {
             .kind = c.GL_UNSIGNED_BYTE,
             .normalized = c.GL_TRUE,
             .stride = @sizeOf(DebugLine),
-            .pointer = @intToPtr(?*c_void, @offsetOf(DebugLine, "color")),
+            .pointer = @intToPtr(?*anyopaque, @offsetOf(DebugLine, "color")),
         },
     };
 
@@ -1081,7 +1081,7 @@ pub const AndroidApp = struct {
 
     pub fn onResume(self: *Self) void {
         app_log.info("onResume()", .{});
-        
+
         self.event_mutex.lock();
         defer self.event_mutex.unlock();
         self.event_resumed = true;
@@ -1246,7 +1246,7 @@ pub const AndroidApp = struct {
                 },
                 .display_refresh_rate_change => {
                     const drrc = header.cast(ovr.EventDisplayRefreshRateChange);
-                    app_log.info("Ovr event: {} from {} to {}\n", .{drrc.EventHeader.EventType, drrc.fromDisplayRefreshRate, drrc.toDisplayRefreshRate});
+                    app_log.info("Ovr event: {} from {} to {}\n", .{ drrc.EventHeader.EventType, drrc.fromDisplayRefreshRate, drrc.toDisplayRefreshRate });
                 },
                 else => {
                     app_log.info("Ovr event: unknown ({})\n", .{@enumToInt(header.EventType)});
@@ -1267,7 +1267,7 @@ pub const AndroidApp = struct {
                 if (rc < 0) break;
             }
 
-            app_log.info("ZINPUT: [{}]: device {} is {}\n", .{index, header.DeviceID, header.Type});
+            app_log.info("ZINPUT: [{}]: device {} is {}\n", .{ index, header.DeviceID, header.Type });
 
             inspect_item: {
                 switch (header.Type) {
@@ -1320,7 +1320,7 @@ pub const AndroidApp = struct {
                         // const rc = vr.getCurrentInputState(header.DeviceID, &state.Header);
 
                         // var pose = ovr.HandPose{};
-                        // vr.getHandPose(header.DeviceID, 
+                        // vr.getHandPose(header.DeviceID,
                     },
                     else => {},
                 }
@@ -1371,7 +1371,6 @@ pub const AndroidApp = struct {
             _ = GL(c.glUnmapBuffer(c.GL_ARRAY_BUFFER), @src());
             GL(c.glBindBuffer(c.GL_ARRAY_BUFFER, 0), @src());
         }
-
 
         // update the scene matrices
         {
@@ -1508,7 +1507,7 @@ pub const AndroidApp = struct {
             };
 
             // AttachCurrentThread resets the thread name, set it after that call.
-            _ = std.os.prctl(.SET_NAME, .{ @ptrToInt("AndroidApp.mainLoop") }) catch undefined;
+            _ = std.os.prctl(.SET_NAME, .{@ptrToInt("AndroidApp.mainLoop")}) catch undefined;
         }
         defer _ = self.java.Vm.*.DetachCurrentThread(self.java.Vm);
 
@@ -1540,7 +1539,7 @@ pub const AndroidApp = struct {
                     std.mem.indexOf(u8, allExtensions, "GL_EXT_texture_border_clamp") != null or
                     std.mem.indexOf(u8, allExtensions, "GL_OES_texture_border_clamp") != null;
             }
-            app_log.info("multiview: {}, texture border clamp: {}\n", .{has_multiview, has_texture_border_clamp});
+            app_log.info("multiview: {}, texture border clamp: {}\n", .{ has_multiview, has_texture_border_clamp });
 
             self.use_multiview = has_multiview;
         }
@@ -1628,7 +1627,7 @@ pub const AndroidApp = struct {
             self.updateSimulation(predicted_display_time - start_time);
 
             const world_layer = self.renderFrame(tracking);
-            const layers = [_]*const ovr.LayerHeader2{ &world_layer.Header };
+            const layers = [_]*const ovr.LayerHeader2{&world_layer.Header};
             _ = vr.submitFrame2(.{
                 .Flags = .{},
                 .SwapInterval = self.swap_interval,
@@ -1655,7 +1654,7 @@ fn checkGlErrors(src: std.builtin.SourceLocation) void {
     while (count < 10) : (count += 1) {
         const err = c.glGetError();
         if (err == c.GL_NO_ERROR) return;
-        app_log.warn("{s}:{}:{}: GL error: {s} ({}) in {s}()\n", .{src.file, src.line, src.column, glErrorString(err), err, src.fn_name});
+        app_log.warn("{s}:{}:{}: GL error: {s} ({}) in {s}()\n", .{ src.file, src.line, src.column, glErrorString(err), err, src.fn_name });
     }
 }
 
@@ -1681,4 +1680,3 @@ fn glFramebufferStatusString(err: c.GLenum) []const u8 {
         else => "Unknown framebuffer status",
     };
 }
-

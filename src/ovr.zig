@@ -43,7 +43,7 @@ pub const Java = extern struct {
     Env: *android.JNIEnv,
     ActivityObject: android.jobject,
 
-    pub const Property = enum (u32) {
+    pub const Property = enum(u32) {
         foveation_level = 15,
         eat_native_gamepad_events = 20,
         active_input_device_id = 24,
@@ -64,7 +64,7 @@ pub const Java = extern struct {
         return null;
     }
 
-    pub const SystemProperty = enum (u32) {
+    pub const SystemProperty = enum(u32) {
         device_type = 0,
         max_fullspeed_framebuffer_samples = 1,
         display_pixels_wide = 2,
@@ -104,7 +104,7 @@ pub const Java = extern struct {
         return vrapi_GetSystemPropertyString(&java, propType);
     }
 
-    pub const SystemStatus = enum (u32) {
+    pub const SystemStatus = enum(u32) {
         mounted = 1,
         throttled = 2,
         render_latency_milliseconds = 5,
@@ -128,7 +128,7 @@ pub const Java = extern struct {
         return vrapi_GetSystemStatusFloat(&java, statusType);
     }
 
-    pub const SystemUIType = enum (u32) {
+    pub const SystemUIType = enum(u32) {
         confirm_quit_menu = 1,
         _,
     };
@@ -344,33 +344,27 @@ pub const Matrix4f = extern struct {
         return out;
     }
     pub fn minor(m: Matrix4f, r0: u32, r1: u32, r2: u32, c0: u32, c1: u32, c2: u32) f32 {
-        return m.M[r0][c0] * (m.M[r1][c1] * m.M[r2][c2] - m.M[r2][c1] * m.M[r1][c2])
-            - m.M[r0][c1] * (m.M[r1][c0] * m.M[r2][c2] - m.M[r2][c0] * m.M[r1][c2])
-            + m.M[r0][c2] * (m.M[r1][c0] * m.M[r2][c1] - m.M[r2][c0] * m.M[r1][c1]);
+        return m.M[r0][c0] * (m.M[r1][c1] * m.M[r2][c2] - m.M[r2][c1] * m.M[r1][c2]) - m.M[r0][c1] * (m.M[r1][c0] * m.M[r2][c2] - m.M[r2][c0] * m.M[r1][c2]) + m.M[r0][c2] * (m.M[r1][c0] * m.M[r2][c1] - m.M[r2][c0] * m.M[r1][c1]);
     }
     pub fn inverse(m: Matrix4f) Matrix4f {
-        const rcpDet: f32 = 1.0 / (
-            (m.M[0][0] * m.minor(1, 2, 3, 1, 2, 3))
-        - (m.M[0][1] * m.minor(1, 2, 3, 0, 2, 3))
-        + (m.M[0][2] * m.minor(1, 2, 3, 0, 1, 3))
-        - (m.M[0][3] * m.minor(1, 2, 3, 0, 1, 2)));
+        const rcpDet: f32 = 1.0 / ((m.M[0][0] * m.minor(1, 2, 3, 1, 2, 3)) - (m.M[0][1] * m.minor(1, 2, 3, 0, 2, 3)) + (m.M[0][2] * m.minor(1, 2, 3, 0, 1, 3)) - (m.M[0][3] * m.minor(1, 2, 3, 0, 1, 2)));
         var out: Matrix4f = undefined;
-        out.M[0][0] =  m.minor(1, 2, 3, 1, 2, 3) * rcpDet;
+        out.M[0][0] = m.minor(1, 2, 3, 1, 2, 3) * rcpDet;
         out.M[0][1] = -m.minor(0, 2, 3, 1, 2, 3) * rcpDet;
-        out.M[0][2] =  m.minor(0, 1, 3, 1, 2, 3) * rcpDet;
+        out.M[0][2] = m.minor(0, 1, 3, 1, 2, 3) * rcpDet;
         out.M[0][3] = -m.minor(0, 1, 2, 1, 2, 3) * rcpDet;
         out.M[1][0] = -m.minor(1, 2, 3, 0, 2, 3) * rcpDet;
-        out.M[1][1] =  m.minor(0, 2, 3, 0, 2, 3) * rcpDet;
+        out.M[1][1] = m.minor(0, 2, 3, 0, 2, 3) * rcpDet;
         out.M[1][2] = -m.minor(0, 1, 3, 0, 2, 3) * rcpDet;
-        out.M[1][3] =  m.minor(0, 1, 2, 0, 2, 3) * rcpDet;
-        out.M[2][0] =  m.minor(1, 2, 3, 0, 1, 3) * rcpDet;
+        out.M[1][3] = m.minor(0, 1, 2, 0, 2, 3) * rcpDet;
+        out.M[2][0] = m.minor(1, 2, 3, 0, 1, 3) * rcpDet;
         out.M[2][1] = -m.minor(0, 2, 3, 0, 1, 3) * rcpDet;
-        out.M[2][2] =  m.minor(0, 1, 3, 0, 1, 3) * rcpDet;
+        out.M[2][2] = m.minor(0, 1, 3, 0, 1, 3) * rcpDet;
         out.M[2][3] = -m.minor(0, 1, 2, 0, 1, 3) * rcpDet;
         out.M[3][0] = -m.minor(1, 2, 3, 0, 1, 2) * rcpDet;
-        out.M[3][1] =  m.minor(0, 2, 3, 0, 1, 2) * rcpDet;
+        out.M[3][1] = m.minor(0, 2, 3, 0, 1, 2) * rcpDet;
         out.M[3][2] = -m.minor(0, 1, 3, 0, 1, 2) * rcpDet;
-        out.M[3][3] =  m.minor(0, 1, 2, 0, 1, 2) * rcpDet;
+        out.M[3][3] = m.minor(0, 1, 2, 0, 1, 2) * rcpDet;
         return out;
     }
     pub fn createScale(x: f32, y: f32, z: f32) Matrix4f {
@@ -409,10 +403,10 @@ pub const Matrix4f = extern struct {
         const sinZ: f32 = @sin(radiansZ);
         const cosZ: f32 = @cos(radiansZ);
         const rotationZ = Matrix4f{ .M = .{
-                .{ cosZ, -sinZ, 0, 0 },
-                .{ sinZ, cosZ, 0, 0 },
-                .{ 0, 0, 1, 0 },
-                .{ 0, 0, 0, 1 },
+            .{ cosZ, -sinZ, 0, 0 },
+            .{ sinZ, cosZ, 0, 0 },
+            .{ 0, 0, 1, 0 },
+            .{ 0, 0, 0, 1 },
         } };
         return rotationZ.multiply(rotationY).multiply(rotationX);
     }
@@ -584,7 +578,6 @@ pub const Matrix4f = extern struct {
         }
         return m.inverse();
     }
-
 };
 pub const Posef = extern struct {
     Orientation: Quatf = Quatf.identity,
@@ -615,7 +608,7 @@ pub const Eye = struct {
     pub const count = 2;
 };
 
-pub const StructureType = enum (u32) {
+pub const StructureType = enum(u32) {
     init_parms = 1,
     mode_parms = 2,
     frame_parms = 3,
@@ -632,20 +625,20 @@ pub const DEVICE_TYPE_OCULUSQUEST2_END: DeviceType = 383;
 pub const DEVICE_TYPE_UNKNOWN: DeviceType = -1;
 pub const DeviceType = c_int;
 
-pub const DeviceRegion = enum (u32) {
+pub const DeviceRegion = enum(u32) {
     unspecified = 0,
     japan = 1,
     china = 2,
     _,
 };
 
-pub const DeviceEmulationMode = enum (u32) {
+pub const DeviceEmulationMode = enum(u32) {
     none = 0,
     go_on_quest = 1,
     _,
 };
 
-pub const InitializeStatus = enum (i32) {
+pub const InitializeStatus = enum(i32) {
     success = 0,
     unknown_error = -1,
     permissions_error = -2,
@@ -655,7 +648,7 @@ pub const InitializeStatus = enum (i32) {
     _,
 };
 
-pub const GraphicsAPI = enum (u32) {
+pub const GraphicsAPI = enum(u32) {
     opengl_es_2 = type_opengl_es | 0x0200,
     opengl_es_3 = type_opengl_es | 0x0300,
 
@@ -848,7 +841,7 @@ pub const Tracking = extern struct {
     HeadPose: RigidBodyPosef,
 };
 
-pub const TrackingTransform = enum (u32) {
+pub const TrackingTransform = enum(u32) {
     identity = 0,
     current = 1,
     system_center_eye_level = 2,
@@ -856,7 +849,7 @@ pub const TrackingTransform = enum (u32) {
     _,
 };
 
-pub const TrackingSpace = enum (u32) {
+pub const TrackingSpace = enum(u32) {
     local = 0,
     local_floor = 1,
     local_tilted = 2,
@@ -865,7 +858,7 @@ pub const TrackingSpace = enum (u32) {
     _,
 };
 
-pub const TrackedDeviceTypeId = enum (i32) {
+pub const TrackedDeviceTypeId = enum(i32) {
     none = -1,
     hmd = 0,
     hand_left = 1,
@@ -882,7 +875,7 @@ pub const BoundaryTriggerResult = extern struct {
     IsTriggering: bool,
 };
 
-pub const TextureType = enum (u32) {
+pub const TextureType = enum(u32) {
     @"2d" = 0,
     @"2d_array" = 2,
     cube = 3,
@@ -891,7 +884,7 @@ pub const TextureType = enum (u32) {
     pub const max = 4;
 };
 
-pub const TextureFormat = enum (u32) {
+pub const TextureFormat = enum(u32) {
     nne = 0,
     @"565" = 1,
     @"5551" = 2,
@@ -906,7 +899,7 @@ pub const TextureFormat = enum (u32) {
     _,
 };
 
-pub const TextureFilter = enum (u32) {
+pub const TextureFilter = enum(u32) {
     nearest = 0,
     linear = 1,
     nearest_mipmap_linear = 2,
@@ -918,7 +911,7 @@ pub const TextureFilter = enum (u32) {
     _,
 };
 
-pub const TextureWrapMode = enum (u32) {
+pub const TextureWrapMode = enum(u32) {
     repeat = 0,
     clamp_to_edge = 1,
     clamp_to_border = 2,
@@ -1050,7 +1043,7 @@ pub const FrameLayerEye = struct {
     pub const max = 2;
 };
 
-pub const FrameLayerBlend = enum (u32) {
+pub const FrameLayerBlend = enum(u32) {
     zero = 0,
     one = 1,
     src_alpha = 2,
@@ -1058,14 +1051,14 @@ pub const FrameLayerBlend = enum (u32) {
     _,
 };
 
-pub const ExtraLatencyMode = enum (u32) {
+pub const ExtraLatencyMode = enum(u32) {
     off = 0,
     on = 1,
     dynamic = 2,
     _,
 };
 
-pub const LayerType2 = enum (u32) {
+pub const LayerType2 = enum(u32) {
     projection2 = 1,
     cylinder2 = 3,
     cube2 = 4,
@@ -1085,13 +1078,13 @@ pub const LayerHeader2 = extern struct {
     ColorScale: Vector4f = .{ .x = 1, .y = 1, .z = 1, .w = 1 },
     SrcBlend: FrameLayerBlend = .one,
     DstBlend: FrameLayerBlend = .zero,
-    Reserved: ?*c_void = null,
+    Reserved: ?*anyopaque = null,
 };
 pub const LayerProjection2 = extern struct {
     Header: LayerHeader2 = .{ .Type = .projection2 },
     HeadPose: RigidBodyPosef = .{},
-    Textures: [FrameLayerEye.max]EyeData = [_]EyeData{ .{} } ** FrameLayerEye.max,
-    
+    Textures: [FrameLayerEye.max]EyeData = [_]EyeData{.{}} ** FrameLayerEye.max,
+
     pub const EyeData = extern struct {
         ColorSwapChain: ?*TextureSwapChain = null,
         SwapChainIndex: c_int = 0,
@@ -1100,9 +1093,9 @@ pub const LayerProjection2 = extern struct {
     };
 
     pub const default = LayerProjection2{
-        .Textures = [_]EyeData{ .{
+        .Textures = [_]EyeData{.{
             .TexCoordsFromTanAngles = default_tan_angles,
-        } } ** FrameLayerEye.max,
+        }} ** FrameLayerEye.max,
     };
     pub const default_black = defaultSolidColor(Vector4f.zero);
 
@@ -1112,9 +1105,9 @@ pub const LayerProjection2 = extern struct {
                 .Type = .projection2,
                 .ColorScale = color,
             },
-            .Textures = [_]EyeData{ .{
+            .Textures = [_]EyeData{.{
                 .ColorSwapChain = TextureSwapChain.default,
-            } } ** FrameLayerEye.max,
+            }} ** FrameLayerEye.max,
         };
     }
 };
@@ -1122,7 +1115,7 @@ pub const LayerProjection2 = extern struct {
 pub const LayerCylinder2 = extern struct {
     Header: LayerHeader2 = .{ .Type = .cylinder2 },
     HeadPose: RigidBodyPosef = .{},
-    Textures: [FrameLayerEye.max]EyeData = [_]EyeData{ .{} } ** FrameLayerEye.max,
+    Textures: [FrameLayerEye.max]EyeData = [_]EyeData{.{}} ** FrameLayerEye.max,
 
     pub const EyeData = extern struct {
         ColorSwapChain: ?*TextureSwapChain = null,
@@ -1133,9 +1126,9 @@ pub const LayerCylinder2 = extern struct {
     };
 
     pub const default = LayerCylinder2{
-        .Textures = [_]EyeData{ .{
+        .Textures = [_]EyeData{.{
             .TexCoordsFromTanAngles = default_tan_angles,
-        } } ** FrameLayerEye.max,
+        }} ** FrameLayerEye.max,
     };
 };
 pub const LayerCube2 = extern struct {
@@ -1143,8 +1136,8 @@ pub const LayerCube2 = extern struct {
     HeadPose: RigidBodyPosef = .{},
     TexCoordsFromTanAngles: Matrix4f = Matrix4f.identity,
     Offset: Vector3f = Vector3f.zero,
-    Textures: [FrameLayerEye.max]EyeData = [_]EyeData{ .{} } ** FrameLayerEye.max,
-    
+    Textures: [FrameLayerEye.max]EyeData = [_]EyeData{.{}} ** FrameLayerEye.max,
+
     pub const EyeData = extern struct {
         ColorSwapChain: ?*TextureSwapChain = null,
         SwapChainIndex: c_int = 0,
@@ -1156,7 +1149,7 @@ pub const LayerEquirect2 = extern struct {
     Header: LayerHeader2 = .{ .Type = .equirect2 },
     HeadPose: RigidBodyPosef = .{},
     TexCoordsFromTanAngles: Matrix4f = Matrix4f.identity,
-    Textures: [FrameLayerEye.max]EyeData = [_]EyeData{ .{} } ** FrameLayerEye.max,
+    Textures: [FrameLayerEye.max]EyeData = [_]EyeData{.{}} ** FrameLayerEye.max,
 
     pub const EyeData = extern struct {
         ColorSwapChain: ?*TextureSwapChain = null,
@@ -1170,8 +1163,8 @@ pub const LayerEquirect2 = extern struct {
 pub const LayerEquirect3 = extern struct {
     Header: LayerHeader2 = .{ .Type = .equirect3 },
     HeadPose: RigidBodyPosef = .{},
-    Textures: [FrameLayerEye.max]EyeData = [_]EyeData{ .{} } ** FrameLayerEye.max,
-    
+    Textures: [FrameLayerEye.max]EyeData = [_]EyeData{.{}} ** FrameLayerEye.max,
+
     pub const EyeData = extern struct {
         ColorSwapChain: ?*TextureSwapChain = null,
         SwapChainIndex: c_int = 0,
@@ -1198,8 +1191,8 @@ pub const LayerLoadingIcon2 = extern struct {
 pub const LayerFishEye2 = extern struct {
     Header: LayerHeader2 = .{ .Type = .fisheye2 },
     HeadPose: RigidBodyPosef = .{},
-    Textures: [FrameLayerEye.max]EyeData = [_]EyeData{ .{} } ** FrameLayerEye.max,
-    
+    Textures: [FrameLayerEye.max]EyeData = [_]EyeData{.{}} ** FrameLayerEye.max,
+
     pub const EyeData = extern struct {
         ColorSwapChain: ?*TextureSwapChain = null,
         SwapChainIndex: c_int = 0,
@@ -1210,9 +1203,9 @@ pub const LayerFishEye2 = extern struct {
     };
 
     pub const default = LayerFishEye2{
-        .Textures = [_]EyeData{ .{
+        .Textures = [_]EyeData{.{
             .TexCoordsFromTanAngles = default_tan_angles,
-        } } ** FrameLayerEye.max,
+        }} ** FrameLayerEye.max,
     };
 };
 pub const Layer_Union2 = extern union {
@@ -1235,13 +1228,13 @@ pub const SubmitFrameDescription2 = extern struct {
     Layers: ?[*]const ?*const LayerHeader2,
 };
 
-pub const PerfThreadType = enum (u32) {
+pub const PerfThreadType = enum(u32) {
     main = 0,
     renderer = 1,
     _,
 };
 
-pub const ColorSpace = enum (u32) {
+pub const ColorSpace = enum(u32) {
     unmanaged = 0,
     rec_2020 = 1,
     rec_709 = 2,
@@ -1258,7 +1251,7 @@ pub const HmdColorDesc = extern struct {
     dead52: [4]u8,
 };
 
-pub const EventType = enum (u32) {
+pub const EventType = enum(u32) {
     none = 0,
     data_lost = 1,
     visibility_gained = 2,
@@ -1374,7 +1367,7 @@ pub const Touches = packed struct {
     index_trigger: bool = false,
     __pad0: u1 = 0,
 
-    pointers: enum (u2) {
+    pointers: enum(u2) {
         none = 0,
         thumb_up = 1,
         index_pointing = 2,
@@ -1390,7 +1383,7 @@ pub const Touches = packed struct {
     __pad2: u16 = 0,
 };
 
-pub const ControllerType = enum (u32) {
+pub const ControllerType = enum(u32) {
     none = 0,
     reserved0 = 1 << 0,
     reserved1 = 1 << 1,
@@ -1445,7 +1438,7 @@ pub const ControllerCapabilities = packed struct {
     has_joystick: bool = false,
     model_oculus_touch: bool = false,
     __pad2: u1 = 0,
-    
+
     __pad3: u16 = 0,
 };
 
@@ -1489,7 +1482,7 @@ pub const InputStateTrackedRemote = extern struct {
 
     Header: InputStateHeader,
     Buttons: Buttons,
-    TrackpadStatus: enum (u32) {
+    TrackpadStatus: enum(u32) {
         off_trackpad = 0,
         on_trackpad = 1,
         _,
@@ -1523,7 +1516,7 @@ pub const InputStateStandardPointer = extern struct {
     Reserved: [20]u64,
 };
 
-pub const Handedness = enum (u32) {
+pub const Handedness = enum(u32) {
     unknown = 0,
     left = 1,
     right = 2,
@@ -1551,7 +1544,7 @@ pub const InputHandCapabilities = extern struct {
     StateCapabilities: HandStateCapabilities,
 };
 
-pub const HandTrackingStatus = enum (u32) {
+pub const HandTrackingStatus = enum(u32) {
     untracked = 0,
     tracked = 1,
     _,
@@ -1614,7 +1607,7 @@ pub const Confidence_LOW: c_uint = 0;
 pub const Confidence_HIGH: c_uint = 1065353216;
 pub const Confidence = c_uint;
 
-pub const HandVersion = enum (u32) {
+pub const HandVersion = enum(u32) {
     version_1 = 0xdf000001,
     _,
 };
@@ -1753,16 +1746,16 @@ pub const submitFrame = vrapi_SubmitFrame;
 
 pub const vrapi_RecenterPose = @compileError(
     "vrapi_RecenterPose() is being deprecated because it is supported at the user " ++
-    "level via system interaction, and at the app level, the app is free to use " ++
-    "any means it likes to control the mapping of virtual space to physical space.",
+        "level via system interaction, and at the app level, the app is free to use " ++
+        "any means it likes to control the mapping of virtual space to physical space.",
 );
 pub const recenterPose = vrapi_RecenterPose;
 
 const deprecated_tracking_transform = @compileError(
     "The TrackingTransform API has been deprecated because it was superceded by the " ++
-    "TrackingSpace API. The key difference in the TrackingSpace API is that LOCAL " ++
-    "and LOCAL_FLOOR spaces are mutable, so user/system recentering is transparently " ++
-    "applied without app intervention.",
+        "TrackingSpace API. The key difference in the TrackingSpace API is that LOCAL " ++
+        "and LOCAL_FLOOR spaces are mutable, so user/system recentering is transparently " ++
+        "applied without app intervention.",
 );
 pub const vrapi_GetTrackingTransform = deprecated_tracking_transform;
 pub const vrapi_SetTrackingTransform = deprecated_tracking_transform;
