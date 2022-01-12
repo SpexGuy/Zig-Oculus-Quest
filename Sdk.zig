@@ -60,6 +60,31 @@ pub fn init(b: *Builder, user_config: ?UserConfig, versions: ToolchainVersions) 
             std.os.exit(1);
         };
         defer vrapi.close();
+
+        var audio_sdk = quest_sdk.openDir("AudioSDK", .{}) catch |err| {
+            std.debug.print(
+                \\Found the Quest SDK at ./quest_sdk, but it is missing the Audio SDK.
+                \\The Oculus Spatial Audio SDK should be unzipped to quest_sdk/AudioSDK.
+                \\Refer to README.md for more information.
+                \\Error: {}
+                \\
+            , .{err});
+            std.os.exit(1);
+        };
+        defer audio_sdk.close();
+
+        var audio_sdk_lib = audio_sdk.openDir("Lib", .{}) catch |err| {
+            std.debug.print(
+                \\Found the Audio SDK at ./quest_sdk/AudioSDK, but it is configured incorrectly.
+                \\Please rearrange the files so that the "Lib" folder in the Audio SDK
+                \\is at ./quest_sdk/AudioSDK/Lib.
+                \\Refer to README.md for more information.
+                \\Error: {}
+                \\
+            , .{err});
+            std.os.exit(1);
+        };
+        defer audio_sdk_lib.close();
     }
 
     const actual_user_config = user_config orelse auto_detect.findUserConfig(b, versions) catch |err| @panic(@errorName(err));
@@ -627,6 +652,7 @@ pub fn compileAppLibrary(
         cpp_dir: []const u8,
         out_dir: []const u8,
         vrapi_dir: []const u8,
+        audio_lib: []const u8,
         target: std.zig.CrossTarget,
     };
 
@@ -637,6 +663,7 @@ pub fn compileAppLibrary(
             .cpp_dir = "arm64-v8a",
             .out_dir = "arm64-v8a",
             .vrapi_dir = "quest_sdk/VrApi/Libs/Android/arm64-v8a",
+            .audio_lib = "quest_sdk/AudioSDK/Lib/Android/arm64-v8a/libovraudiostatic64.a",
             .target = zig_targets.aarch64,
         },
         .arm => TargetConfig{
@@ -645,6 +672,7 @@ pub fn compileAppLibrary(
             .cpp_dir = "armeabi-v7a",
             .out_dir = "armeabi",
             .vrapi_dir = "quest_sdk/VrApi/Libs/Android/armeabi-v7a",
+            .audio_lib = "quest_sdk/AudioSDK/Lib/Android/armeabi-v7a/libovraudiostatic64.a",
             .target = zig_targets.arm,
         },
         .x86 => TargetConfig{
@@ -653,6 +681,7 @@ pub fn compileAppLibrary(
             .cpp_dir = "x86",
             .out_dir = "x86",
             .vrapi_dir = @panic("VrApi not built for x86, cannot link this platform"),
+            .audio_lib = @panic("AudioSDK not built for Android x86, cannot link this platform"),
             .target = zig_targets.x86,
         },
         .x86_64 => TargetConfig{
@@ -661,6 +690,7 @@ pub fn compileAppLibrary(
             .cpp_dir = "x86_64",
             .out_dir = "x86_64",
             .vrapi_dir = @panic("VrApi not built for x86_64, cannot link this platform"),
+            .audio_lib = @panic("AudioSDK not built for Android x86_64, cannot link this platform"),
             .target = zig_targets.x86_64,
         },
     };
@@ -707,6 +737,8 @@ pub fn compileAppLibrary(
     const vrapi_lib_path = std.fs.path.join(sdk.b.allocator, &[_][]const u8{ config.vrapi_dir, vrapi_version }) catch unreachable;
     exe.addLibPath(vrapi_lib_path);
     exe.linkSystemLibraryName("vrapi");
+
+    exe.addObjectFile(config.audio_lib);
 
     const libraries = sdk.b.allocator.alloc([]const u8, 1) catch unreachable;
     const vrapi_lib = std.fs.path.join(sdk.b.allocator, &[_][]const u8{ vrapi_lib_path, "libvrapi.so" }) catch unreachable;

@@ -26,7 +26,9 @@ You need the [Android SDK](https://developer.android.com/studio#command-tools) i
 
 You also need [adb](https://developer.android.com/studio/command-line/adb) and a Java SDK installed (required for `jarsigner`).
 
-Finally, you will need to install the [Oculus Quest SDK](https://developer.oculus.com/downloads/package/oculus-mobile-sdk/).  Save this into your checkout as `quest_sdk`, so that `quest_sdk/VrApi/Libs/Android/...` can be found by the build script.
+Then, you will need to install the [Oculus Quest SDK](https://developer.oculus.com/downloads/package/oculus-mobile-sdk/).  Unzip this into your checkout as `quest_sdk`, so that `quest_sdk/VrApi/Libs/Android/...` can be found by the build script.
+
+Finally, you will need to add the [Oculus Spatial Audio SDK](https://developer.oculus.com/downloads/package/oculus-spatializer-native/).  Unzip this into the quest_sdk folder so that `quest_sdk/AudioSDK/Lib/Android/...` can be found by the build script.
 
 In order to sideload applications onto your Quest or Quest 2, you will also need to [create an Oculus Developer Account](https://developer.oculus.com/manage/organizations/create/) and [put your device into developer mode](https://developer.oculus.com/documentation/native/android/mobile-device-setup/#enable-developer-mode).
 

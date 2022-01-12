@@ -1,7 +1,10 @@
 //! Copyright (c) Facebook Technologies, LLC and its affiliates. All rights reserved.
+//! Your use of this SDK or tool is subject to the Oculus SDK License Agreement, available at https://developer.oculus.com/licenses/oculussdk/
 
 const android = @import("android-support.zig");
 const std = @import("std");
+
+pub const audio = @import("ovr_audio.zig");
 
 pub const PRODUCT_VERSION = 1;
 pub const MAJOR_VERSION = 1;
@@ -167,6 +170,43 @@ pub const Error_NotImplemented: c_int = -1052;
 pub const Error_NotReady: c_int = -1053;
 pub const Error_Unavailable: c_int = -1054;
 pub const ErrorResult = c_int;
+
+pub const OvrError = error {
+    Ovr_Unknown,
+    Ovr_OutOfMemory,
+    Ovr_DeviceUnavailable,
+    Ovr_UnsupportedDeviceType,
+    Ovr_NoDevice,
+    Ovr_NotImplemented,
+    Ovr_NotReady,
+    Ovr_Unavailable,
+};
+
+pub fn decodeError(err: Result) OvrError {
+    @setCold(true);
+    switch (err) {
+        Error_MemoryAllocationFailure => return OvrError.Ovr_OutOfMemory,
+        Error_DeviceUnavailable => return OvrError.Ovr_DeviceUnavailable,
+        Error_UnsupportedDeviceType => return OvrError.Ovr_UnsupportedDeviceType,
+        Error_NoDevice => return OvrError.Ovr_NoDevice,
+        Error_NotImplemented => return OvrError.Ovr_NotImplemented,
+        Error_NotReady => return OvrError.Ovr_NotReady,
+        Error_Unavailable => return OvrError.Ovr_Unavailable,
+
+        Error_NotInitialized,
+        Error_InvalidOperation,
+        Error_InvalidParameter,
+        => |err| {
+            _ = err; // for debugging
+            if (std.debug.runtime_safety) unreachable;
+            return OvrError.Ovr_Unknown;
+        },
+        else => |err| {
+            _ = err; // for debugging
+            return OvrError.Ovr_Unknown;
+        },
+    }
+}
 
 pub const Vector2f = extern struct {
     x: f32,
