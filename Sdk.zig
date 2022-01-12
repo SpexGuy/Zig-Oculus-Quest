@@ -619,20 +619,12 @@ pub fn compileAppLibrary(
     exe.strip = (mode == .ReleaseSmall);
 
     exe.defineCMacro("ANDROID", null);
-
-    const include_dir = std.fs.path.resolve(sdk.b.allocator, &[_][]const u8{ ndk_root, "sysroot/usr/include" }) catch unreachable;
-    exe.addIncludeDir(include_dir);
-
-    exe.linkLibC();
-    for (app_libs) |lib| {
-        exe.linkSystemLibraryName(lib);
-    }
-
     exe.setBuildMode(mode);
 
     const TargetConfig = struct {
         lib_dir: []const u8,
-        include_dir: []const u8,
+        target_dir: []const u8,
+        cpp_dir: []const u8,
         out_dir: []const u8,
         vrapi_dir: []const u8,
         target: std.zig.CrossTarget,
@@ -641,28 +633,32 @@ pub fn compileAppLibrary(
     const config: TargetConfig = switch (target) {
         .aarch64 => TargetConfig{
             .lib_dir = "arch-arm64/usr/lib",
-            .include_dir = "aarch64-linux-android",
+            .target_dir = "aarch64-linux-android",
+            .cpp_dir = "arm64-v8a",
             .out_dir = "arm64-v8a",
             .vrapi_dir = "quest_sdk/VrApi/Libs/Android/arm64-v8a",
             .target = zig_targets.aarch64,
         },
         .arm => TargetConfig{
             .lib_dir = "arch-arm/usr/lib",
-            .include_dir = "arm-linux-androideabi",
+            .target_dir = "arm-linux-androideabi",
+            .cpp_dir = "armeabi-v7a",
             .out_dir = "armeabi",
             .vrapi_dir = "quest_sdk/VrApi/Libs/Android/armeabi-v7a",
             .target = zig_targets.arm,
         },
         .x86 => TargetConfig{
             .lib_dir = "arch-x86/usr/lib",
-            .include_dir = "i686-linux-android",
+            .target_dir = "i686-linux-android",
+            .cpp_dir = "x86",
             .out_dir = "x86",
             .vrapi_dir = @panic("VrApi not built for x86, cannot link this platform"),
             .target = zig_targets.x86,
         },
         .x86_64 => TargetConfig{
             .lib_dir = "arch-x86_64/usr/lib64",
-            .include_dir = "x86_64-linux-android",
+            .target_dir = "x86_64-linux-android",
+            .cpp_dir = "x86_64",
             .out_dir = "x86_64",
             .vrapi_dir = @panic("VrApi not built for x86_64, cannot link this platform"),
             .target = zig_targets.x86_64,
@@ -673,23 +669,39 @@ pub fn compileAppLibrary(
         ndk_root,
         sdk.versions.android_sdk_version,
     });
+    const lib_dir = std.fs.path.resolve(sdk.b.allocator, &[_][]const u8{ lib_dir_root, config.lib_dir }) catch unreachable;
 
+    exe.setTarget(config.target);
+    exe.addLibPath(lib_dir);
+
+    const include_dir = std.fs.path.resolve(sdk.b.allocator, &[_][]const u8{ ndk_root, "sysroot/usr/include" }) catch unreachable;
+    exe.addIncludeDir(include_dir);
+
+    for (app_libs) |lib| {
+        exe.linkSystemLibraryName(lib);
+    }
+
+    // Link with the platform libc++
+    const libcpp_dir = std.fs.path.resolve(sdk.b.allocator, &[_][]const u8{ ndk_root, "sources/cxx-stl/llvm-libc++/libs", config.cpp_dir }) catch unreachable;
+    const libcpp_shared = std.fs.path.resolve(sdk.b.allocator, &[_][]const u8{ libcpp_dir, "libc++_static.a" }) catch unreachable;
+    const libcpp_abi = std.fs.path.resolve(sdk.b.allocator, &[_][]const u8{ libcpp_dir, "libc++abi.a" }) catch unreachable;
+    exe.addObjectFile(libcpp_shared);
+    exe.addObjectFile(libcpp_abi);
+    exe.linkSystemLibraryName("unwind");
+
+    const sys_include_dir = std.fs.path.resolve(sdk.b.allocator, &[_][]const u8{ include_dir, config.target_dir }) catch unreachable;
+    exe.addIncludeDir(sys_include_dir);
+
+    // write libc file:
     const libc_path = std.fs.path.resolve(sdk.b.allocator, &[_][]const u8{
         sdk.b.cache_root,
         "android-libc",
         sdk.b.fmt("android-{d}-{s}.conf", .{ sdk.versions.android_sdk_version, config.out_dir }),
     }) catch unreachable;
-
-    const lib_dir = std.fs.path.resolve(sdk.b.allocator, &[_][]const u8{ lib_dir_root, config.lib_dir }) catch unreachable;
-
-    exe.setTarget(config.target);
-    exe.addLibPath(lib_dir);
-    exe.addIncludeDir(std.fs.path.resolve(sdk.b.allocator, &[_][]const u8{ include_dir, config.include_dir }) catch unreachable);
-
-    // write libc file:
-    const libc_file_step = CreateLibCFileStep.create(sdk.b, libc_path, include_dir, include_dir, lib_dir);
+    const libc_file_step = CreateLibCFileStep.create(sdk.b, libc_path, include_dir, sys_include_dir, lib_dir);
     exe.libc_file = std.build.FileSource{ .generated = &libc_file_step.path };
     exe.step.dependOn(&libc_file_step.step);
+    exe.linkLibC();
 
     const vrapi_version = if (mode == .Debug) "Debug" else "Release";
     const vrapi_lib_path = std.fs.path.join(sdk.b.allocator, &[_][]const u8{ config.vrapi_dir, vrapi_version }) catch unreachable;
