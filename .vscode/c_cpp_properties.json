@@ -3,8 +3,9 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/**",
-                "/home/felix/projects/android-hass/android-sdk/ndk/21.1.6352462/sysroot/usr/include"
+                "${workspaceFolder}/vendor/**",
+                "${env:ANDROID_SDK_ROOT}/ndk/21.1.6352462/sysroot/usr/include",
+                "${env:ANDROID_SDK_ROOT}/ndk/21.1.6352462/sysroot/usr/include/aarch64-linux-android"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang",

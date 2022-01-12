@@ -1,0 +1,54 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch the installed app",
+            "type": "fb-lldb",
+            "request": "launch",
+            "android": {
+                "application": {
+                    "package": "org.zigulus.cubeworld",
+                    "activity": "android.app.NativeActivity"
+                },
+                "lldbConfig": {
+                    "sourceMaps": [
+                        //"<PATH_FROM> <PATH_TO>"
+                    ],
+                    "librarySearchPaths": [
+                        "${env:ANDROID_SDK_ROOT}/ndk/21.1.6352462/platforms/android-28/arch-arm64/usr/lib",
+                        "${env:ANDROID_SDK_ROOT}/ndk/21.1.6352462/sources/cxx-stl/llvm-libc++/libs/arm64-v8a",
+                        "${workspaceFolder}/quest_sdk/VrApi/Libs/Android/**",
+                        "${workspaceFolder}/quest_sdk/AudioSDK/Lib/Android/**",
+                        "${workspaceFolder}/zig-cache/o/**"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Attach to the running app",
+            "type": "fb-lldb",
+            "request": "attach",
+            "android": {
+                "application": {
+                    "package": "org.zigulus.cubeworld",
+                    "activity": "android.app.NativeActivity"
+                },
+                "lldbConfig": {
+                    "sourceMaps": [
+                        //"<PATH_FROM> <PATH_TO>"
+                    ],
+                    "librarySearchPaths": [
+                        "${env:ANDROID_SDK_ROOT}/ndk/21.1.6352462/platforms/android-28/arch-arm64/usr/lib",
+                        "${env:ANDROID_SDK_ROOT}/ndk/21.1.6352462/sources/cxx-stl/llvm-libc++/libs/arm64-v8a",
+                        "${workspaceFolder}/quest_sdk/VrApi/Libs/Android/**",
+                        "${workspaceFolder}/quest_sdk/AudioSDK/Lib/Android/**",
+                        "${workspaceFolder}/zig-cache/o/**"
+                    ]
+                }
+            }
+        }
+    ]
+}

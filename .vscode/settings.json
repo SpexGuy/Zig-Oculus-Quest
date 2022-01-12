@@ -1,4 +1,5 @@
 {
+  "debug.allowBreakpointsEverywhere": true,
   "files.associations": {
     "ios": "c",
     "condition_variable": "c",
